@@ -62,7 +62,26 @@ if [ "${1:-}" = "--secrets" ]; then
             case "$name" in
                 APPROVAL_HMAC_SECRET|TRIGGER_TOKEN)
                     value=$(python -c 'import secrets;print(secrets.token_urlsafe(32))')
-                    info "  $name: generated"
+                    # Written back to .env, because TRIGGER_TOKEN has to be copied into a
+                    # GitHub Actions secret and Secret Manager will not show it again.
+                    # Generating a value the user can never read is a dead end.
+                    if grep -qE "^${name}=" .env; then
+                        python - "$name" "$value" <<'PY'
+import sys
+from pathlib import Path
+name, value = sys.argv[1], sys.argv[2]
+path = Path(".env")
+lines = path.read_text(encoding="utf-8").splitlines()
+path.write_text(
+    "\n".join(f"{name}={value}" if line.startswith(f"{name}=") else line for line in lines)
+    + "\n",
+    encoding="utf-8",
+)
+PY
+                    else
+                        printf '%s=%s\n' "$name" "$value" >> .env
+                    fi
+                    info "  $name: generated and written to .env"
                     ;;
                 *)
                     printf '\033[33mskip\033[0m %s: not set in .env\n' "$name"
@@ -147,13 +166,23 @@ gcloud run services update "$SERVICE" \
     --project "$PROJECT" --region "$REGION" \
     --update-env-vars "PUBLIC_BASE_URL=${url}" --quiet >/dev/null
 
+trigger_token=$(grep -E '^TRIGGER_TOKEN=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)
+
 printf '\n\033[32mdeployed\033[0m %s\n\n' "$url"
 echo "Next:"
-echo "  1. curl ${url}/healthz          # publish_ready should be true"
-echo "  2. Slack app: set the two Request URLs to"
-echo "       ${url}/slack/commands"
-echo "       ${url}/slack/interactions"
-echo "  3. GitHub repo secrets (Settings -> Secrets and variables -> Actions):"
+echo "  1. curl ${url}/healthz"
+echo "     publish_ready should be true, and all three tools true."
+echo
+echo "  2. Slack app -> set both Request URLs:"
+echo "       Slash Commands            ${url}/slack/commands"
+echo "       Interactivity & Shortcuts ${url}/slack/interactions"
+echo
+echo "  3. GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret:"
 echo "       SERVICE_URL   = ${url}"
-echo "       TRIGGER_TOKEN = (same value as the secret)"
+if [ -n "$trigger_token" ]; then
+    echo "       TRIGGER_TOKEN = ${trigger_token}"
+else
+    echo "       TRIGGER_TOKEN = (read it from your .env)"
+fi
+echo
 echo "  4. Actions -> 'Scheduled resume run' -> Run workflow, to test the trigger"

@@ -36,8 +36,9 @@ sources/ 丟文件 ──▶ LLM 抽取 ──▶ Notion 待審 ──▶ 你在
 固定下載連結（永遠指向最新核准版本，可放進 email 簽名或 GitHub profile）：
 
 ```
-https://<render-url>/resume/en.pdf     https://<render-url>/resume/zh.pdf
-https://<render-url>/resume/en.docx    https://<render-url>/resume/zh.docx
+https://<你的-cloud-run-網址>/resume/en.pdf          .../resume/zh.pdf
+https://<你的-cloud-run-網址>/resume/en.latex.pdf    .../resume/zh.latex.pdf
+https://<你的-cloud-run-網址>/resume/en.docx         .../resume/zh.docx
 ```
 
 ---
@@ -58,29 +59,66 @@ https://<render-url>/resume/en.docx    https://<render-url>/resume/zh.docx
 
 ## 初次設定
 
-### 所有憑證只填在 Render 一個地方
+### 前置條件
 
-先講清楚方向，因為這件事最容易搞混：
+| 需要什麼 | 怎麼裝 / 確認 |
+| --- | --- |
+| **Python 3.12+** | `python --version`（本機開發與跑腳本用） |
+| **Git Bash** | Windows 上跑 `deploy_cloudrun.sh` 需要（Git for Windows 內含） |
+| **gcloud CLI** | <https://cloud.google.com/sdk/docs/install> → 裝完 `gcloud --version` 確認 |
+| **GCP 專案** | 到 <https://console.cloud.google.com> 建一個（免費層不需要綁卡就能用 Cloud Run 的免費額度；但啟用 Cloud Build 會要求綁定帳單帳戶，仍在免費額度內） |
+| **Docker Desktop** | 只有想在本機建 image 或跑容器測試時才需要；部署走 Cloud Build，不需要本機 Docker |
 
-- **Notion / Slack / GitHub / Anthropic 的 token 全部只填進 Render 的 Environment。**
-- **你不需要把任何 token 填回 Slack 或 Notion。** 在 Slack 設定頁你只填「我的伺服器在哪」
-  （兩個 Request URL）；token 是 Slack 發給你的，方向相反。Notion 也只需要知道
-  「這個 integration 可以讀這一頁」，不需要知道 Render 存在。
+跑部署前先做這三件事：
+
+```bash
+gcloud auth login                        # 開瀏覽器登入 Google 帳號
+gcloud config set project 你的專案ID      # 例如 resume-pipeline-470123
+gcloud config list                       # 確認 account 與 project 都對了
+```
+
+> 專案 ID 不是專案名稱。在 Console 首頁的專案選單裡可以看到，長得像 `my-project-470123`。
+
+部署腳本會自動啟用這四個 API，不用手動開：
+`run.googleapis.com`、`cloudbuild.googleapis.com`、`secretmanager.googleapis.com`、
+`artifactregistry.googleapis.com`。
+
+### 憑證的方向：全部只填進 `.env`
+
+這件事最容易搞混，先講清楚：
+
+- **所有 token 只寫在本機的 `.env`**，部署腳本會讀它並存進 GCP Secret Manager。
+- **你不需要把任何 token 填回 Slack、Notion 或 GCP 的介面。** 在 Slack 設定頁你只填
+  「我的伺服器在哪」（兩個 Request URL）；token 是 Slack 發給你的，方向相反。
+  Notion 也只需要知道「這個 integration 可以讀這一頁」。
+- 唯一的例外是 **GitHub Actions 的兩個 secret**（`SERVICE_URL`、`TRIGGER_TOKEN`），
+  那要在 GitHub 網頁上填，因為 Actions 跑在 GitHub 而不是 Cloud Run。
 
 ### 需要你手動準備的六個值
 
-| 變數 | 從哪裡拿 |
-| --- | --- |
-| `ANTHROPIC_API_KEY` | <https://platform.claude.com> → API keys |
-| `NOTION_TOKEN` | Notion internal integration（下面第 1 步），`ntn_` 開頭 |
-| `SLACK_BOT_TOKEN` | Slack app → OAuth & Permissions → Bot User OAuth Token，`xoxb-` 開頭 |
-| `SLACK_SIGNING_SECRET` | Slack app → Basic Information → App Credentials → Signing Secret |
-| `SLACK_DM_CHANNEL` | 你自己的 Slack member ID（`U` 開頭；頭像 → View full profile → ⋯ → Copy member ID） |
-| `GITHUB_TOKEN` | GitHub fine-grained PAT，對這個 repo 要 **Contents: Read and write**（publish 要 commit 回來） |
+複製 `.env.example` 成 `.env`，填這六個：
 
-其餘變數都不用管：`APPROVAL_HMAC_SECRET` 與 `TRIGGER_TOKEN` 由 `render.yaml` 自動產生，
-`PUBLIC_BASE_URL` 自動帶入 Render 網址，七個 `NOTION_DB_*` 與其他選項都有預設值
-（完整清單見 `.env.example`）。
+| 變數 | 從哪裡拿 | 長相 |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | <https://platform.claude.com> → API keys | `sk-ant-…` |
+| `NOTION_TOKEN` | Notion internal integration（下面第 1 步） | `ntn_…` |
+| `SLACK_BOT_TOKEN` | Slack app → OAuth & Permissions → Bot User OAuth Token | `xoxb-…` |
+| `SLACK_SIGNING_SECRET` | Slack app → Basic Information → App Credentials → Signing Secret | 32 字元 hex |
+| `SLACK_DM_CHANNEL` | 你自己的 Slack member ID（頭像 → View full profile → ⋯ → Copy member ID） | `U…` |
+| `GITHUB_TOKEN` | GitHub fine-grained PAT，對 Resume_pipeline 要 **Contents: Read and write** | `github_pat_…` |
+
+**這兩個不用填，腳本會產生並寫回你的 `.env`**（因為 `TRIGGER_TOKEN` 之後要複製到
+GitHub Actions，Secret Manager 不會再顯示第二次）：
+
+| 變數 | 用途 |
+| --- | --- |
+| `APPROVAL_HMAC_SECRET` | 簽核准連結，讓猜到 run ID 的人不能發布 |
+| `TRIGGER_TOKEN` | 驗證 GitHub Actions 的定時觸發請求 |
+
+**這些完全不用管**，都有預設值或由腳本自動帶入：
+`PUBLIC_BASE_URL`（部署後自動填入 Cloud Run 網址）、`STORAGE_BACKEND`（腳本設為 `github`）、
+七個 `NOTION_DB_*`、`NOTION_MASTER_PAGE_ID`、`GITHUB_REPO`、`GIT_BRANCH`、`RENDERERS`、
+`APPROVAL_TIMEOUT_HOURS`、`LLM_MODEL` 等。**完整 27 個變數的清單見 `.env.example`。**
 
 ### 1. Notion integration（必做，否則什麼都讀不到）
 
@@ -97,30 +135,49 @@ https://<render-url>/resume/en.docx    https://<render-url>/resume/zh.docx
 
 ### 2. Slack app
 
-先部署 Render 拿到網址再做這步：**步驟 4 按 Save 時 Slack 會即時驗證那個 URL**。
+分兩段做，因為 **Interactivity 按 Save 時 Slack 會即時驗證那個 URL** —— 服務還沒部署會失敗。
+
+**先做（拿 token 用）：**
 
 | 位置 | 設定 |
 | --- | --- |
-| Create New App | From scratch，名稱 `Resume Pipeline` |
+| Create New App | From scratch，名稱 `Resume Pipeline`，選你的 workspace |
 | OAuth & Permissions → Bot Token Scopes | `chat:write`、`commands`、`im:write` |
-| Slash Commands → Create New Command | `/resume` → `https://<render-url>/slack/commands` |
-| Interactivity & Shortcuts | 打開開關，Request URL `https://<render-url>/slack/interactions` |
-| Install App | Install to Workspace → 複製 Bot User OAuth Token |
+| Install App | Install to Workspace → Allow → 複製 **Bot User OAuth Token**（`xoxb-`） |
+| Basic Information → App Credentials | 複製 **Signing Secret** |
+
+把這兩個值填進 `.env`。
+
+**部署完成後再做**（第 3 步會印出網址，用它取代 `<URL>`）：
+
+| 位置 | 設定 |
+| --- | --- |
+| Slash Commands → Create New Command | Command `/resume`，Request URL `<URL>/slack/commands` |
+| Interactivity & Shortcuts | 打開開關，Request URL `<URL>/slack/interactions` |
 
 三個子命令（`update` / `status` / `latest`）共用同一個 URL，不用分別註冊。
 只呼叫 `chat.postMessage`，所以不需要 `files:write` — PDF 掛在 Notion 與下載連結。
 
 ### 3. Google Cloud Run
 
-```powershell
-# 一次性：建立 secret（從 .env 讀值，缺的兩個會自動產生）
+確認前置條件都做完（`gcloud auth login` + `gcloud config set project`），然後在 **Git Bash** 裡：
+
+```bash
+# 一次性：啟用 API、建立 secret（從 .env 讀值；缺的兩個會產生並寫回 .env）
 bash scripts/deploy_cloudrun.sh --secrets
 
-# 之後每次部署
+# 之後每次改程式重新部署
 bash scripts/deploy_cloudrun.sh
 ```
 
-第一次 build 約 10 分鐘（要下載 Chromium 與 Tectonic）。腳本結束會印出網址與後續步驟。
+第一次 build 約 10 分鐘（要下載 Chromium 與 Tectonic）。腳本結束會印出網址，
+以及要填進 Slack 與 GitHub 的確切值 —— 包含產生出來的 `TRIGGER_TOKEN`。
+
+可用環境變數覆寫預設（都有合理預設值，通常不用動）：
+
+```bash
+REGION=asia-east1 MEMORY=1Gi bash scripts/deploy_cloudrun.sh
+```
 
 **為什麼是 Cloud Run 而不是 Render 免費方案**：Render Free 閒置 15 分鐘後 spin down，
 週一的定時觸發會撞上冷啟動；而且 web + cron 兩個 service 會超過 750 免費小時。
@@ -159,13 +216,13 @@ curl https://<cloud-run-url>/healthz
 `missing_credentials` 應該是空的、`publish_ready` 應該是 `true`、
 `tools` 三項（`pdftoppm` / `tectonic` / `git`）應該都是 `true`。
 
-> 想改回 Render（付費 Starter）或自架，`docs/render.yaml` 是保留的 blueprint，
-> 把 `STORAGE_BACKEND` 設回 `local` 即可 —— 那裡有持久磁碟，`state/` 是 committed 目錄。
+> 想改用 Render 或自架，`docs/render.yaml` 是保留的 blueprint；把 `STORAGE_BACKEND`
+> 設回 `local` 即可 —— 那裡有持久磁碟，`state/` 就是 committed 目錄。
+> 記憶體實測峰值 54MB + 488MB，512MB 方案就夠。
 
-> **Plan 必須是 Starter，不能用 Free。** Chromium + Tectonic 尖峰約 1GB RAM，Free 的 512MB 會 OOM；
-> 而且 Free 會 spin down，週一的 cron 觸發會撞上冷啟動而逾時。
+---
 
-### 4. 本機開發
+## 本機開發
 
 ```powershell
 python -m venv .venv
@@ -249,7 +306,20 @@ B 請求要讀得到」。`github` backend 解決這件事，代價是每次操�
 | diff 頁沒有版面比對圖 | 該環境沒有 `pdftoppm` |
 | 核准連結說 invalid signature | `APPROVAL_HMAC_SECRET` 換過了，舊連結會失效 |
 
-`/healthz` 會回報 renderer、外部工具、以及缺哪些憑證。
+**部署階段的問題：**
+
+| 症狀 | 原因 |
+| --- | --- |
+| `gcloud: command not found` | CLI 沒裝或沒重開終端機。裝完要重開才會進 PATH |
+| `no GCP project selected` | 跑 `gcloud config set project 你的專案ID`（是 ID 不是名稱） |
+| `PERMISSION_DENIED` 啟用 API 時 | 該專案沒綁帳單帳戶。Cloud Build 需要綁定，但用量仍在免費額度內 |
+| `.env not found` | `--secrets` 需要 `.env`。先 `cp .env.example .env` 並填那六個值 |
+| 部署腳本說 `skip NOTION_TOKEN` | `.env` 裡那一行還是佔位符或空的 |
+| Slack 存 Interactivity 說 URL 無效 | 服務還沒部署。先跑第 3 步拿到網址，再回來設 Slack |
+| Actions 的 `Scheduled resume run` 失敗 | `SERVICE_URL` 或 `TRIGGER_TOKEN` 沒設，或值與 Secret Manager 不一致 |
+| `bash: scripts/...: No such file` | 在 PowerShell 跑了。要在 **Git Bash** 裡執行 |
+
+`/healthz` 會回報 renderer、外部工具、以及缺哪些憑證 —— 部署後第一個該看的地方。
 
 ---
 
