@@ -76,12 +76,17 @@ FONTS = {
     "sans": "Noto Sans",
     "cjk_serif": "Noto Serif CJK TC",
     "cjk_sans": "Noto Sans CJK TC",
+    # Carries the geometric symbols the serif faces lack (▪ → ↔). Verified with
+    # `fc-list ":charset=25AA"` inside the image: Noto Serif is not in that list.
+    "symbol": "Noto Sans CJK TC",
 }
 
 # U+25AA, matching --bullet in print.css and BULLET in docx.py. Deliberately the literal
 # glyph rather than \blacksquare, which requires amssymb — its absence made every LaTeX
 # render abort with "Undefined control sequence".
 BULLET_MARKER = "▪"
+ARROW_RIGHT = "→"
+ARROW_BOTH = "↔"
 
 # --- TeX escaping -----------------------------------------------------------
 # Replacements must be applied in ONE pass. Sequential str.replace() calls corrupt each
@@ -102,20 +107,35 @@ _TEX_REPLACEMENTS = {
 
 _TEX_SPECIALS = re.compile("|".join(re.escape(char) for char in _TEX_REPLACEMENTS))
 
-# Note on non-ASCII punctuation (— – → 、（）～): these are deliberately NOT escaped.
-# Under XeTeX with fontspec/xeCJK they render natively from the font, whereas LaTeX's
-# ASCII fallbacks are wrong — `--` for an en dash inside a date range, for instance.
+# Symbols the Latin serif face has no glyph for. XeTeX renders a missing glyph as a tofu
+# box with no warning, so these are routed through \symbolfont (declared in the template)
+# rather than left to the main font. Found by rasterizing a compiled PDF and looking at
+# it — invisible in the .tex source and in the extracted text layer alike.
+_SYMBOL_SUBSTITUTIONS = {
+    "→": r"\arrowright{}",
+    "↔": r"\arrowboth{}",
+    "▪": r"\bulletmark{}",
+}
+
+_SYMBOLS = re.compile("|".join(re.escape(char) for char in _SYMBOL_SUBSTITUTIONS))
+
+# Other non-ASCII punctuation (— – 、（）～) is deliberately left alone: Noto Serif and
+# Noto Serif CJK both have those, and XeTeX renders them natively. LaTeX's ASCII fallbacks
+# would be wrong — `--` for an en dash inside a date range, for instance.
 
 
 def tex_escape(value: str | None) -> str:
     """Escape a string for LaTeX body text.
 
     Every model field goes through this. Without it a single `&` in an organization name
-    (`AI & Data`) or a `_` in a repo path aborts the compile.
+    (`AI & Data`) or a `_` in a repo path aborts the compile, and an arrow in a project
+    description renders as a blank box.
     """
     if not value:
         return ""
-    return _TEX_SPECIALS.sub(lambda match: _TEX_REPLACEMENTS[match.group()], value)
+    escaped = _TEX_SPECIALS.sub(lambda match: _TEX_REPLACEMENTS[match.group()], value)
+    # After escaping, so the backslashes these introduce are not themselves escaped.
+    return _SYMBOLS.sub(lambda match: _SYMBOL_SUBSTITUTIONS[match.group()], escaped)
 
 
 def _environment(templates_dir: Path) -> Environment:
@@ -167,10 +187,14 @@ def render_tex(resume: Resume, settings: Settings) -> str:
         rules=RULES,
         fonts=FONTS,
         bullet_marker=BULLET_MARKER,
+        arrow_right=ARROW_RIGHT,
+        arrow_both=ARROW_BOTH,
         # Upright rather than italic for Chinese: synthesised obliques on CJK faces
         # look broken, matching the `font-style: normal` rule in print.css.
         emph_open="" if is_zh else r"\itshape ",
         emph_close="",
+        # Uppercase is meaningless for CJK, matching `text-transform: none` in print.css.
+        case_switch="" if is_zh else r"\MakeUppercase",
         # Separators are passed in pre-escaped: a `join` argument inside a \VAR{} tag
         # cannot contain a closing brace, which rules out inlining a tex() call.
         separators={"contact": r" \textperiodcentered\ "},

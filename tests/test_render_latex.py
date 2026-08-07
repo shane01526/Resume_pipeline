@@ -92,6 +92,59 @@ def test_no_unrendered_jinja_tags(resume_en: Resume, settings: Settings) -> None
     assert r"\#{" not in source
 
 
+def test_template_comments_contain_no_closing_brace() -> None:
+    """A `}` inside a Jinja comment silently ends it and leaks prose into the document.
+
+    The comment delimiter is a single closing brace, so writing `\\MakeUppercase{#1}` or
+    `\\VAR{x}` inside explanatory prose terminates the comment there. The remainder becomes
+    body text before `\\begin{document}`, and TeX reports "Missing \\begin{document}" at a
+    line that looks perfectly fine in the template — which is exactly how this cost an
+    afternoon.
+    """
+    template = (Path(__file__).parent.parent / "templates" / "resume.tex.j2").read_text(
+        encoding="utf-8"
+    )
+
+    offenders = []
+    for match in re.finditer(r"\\#\{", template):
+        close = template.index("}", match.end())
+        # Anything non-whitespace after the closing brace on the same line means the
+        # comment ended earlier than the author intended.
+        line_end = template.find("\n", close)
+        trailing = template[close + 1 : line_end if line_end != -1 else None]
+        if trailing.strip():
+            line_number = template[: match.start()].count("\n") + 1
+            offenders.append((line_number, trailing.strip()[:60]))
+
+    assert not offenders, "Jinja comments truncated by an inner '}': " + "; ".join(
+        f"line {n}: leaked {text!r}" for n, text in offenders
+    )
+
+
+def test_generated_preamble_has_no_leaked_prose(resume_en: Resume, settings: Settings) -> None:
+    """No English sentence fragments may precede \\begin{document}.
+
+    Catches leaked comment prose whatever its cause. Checked by looking for runs of plain
+    words rather than by whitelisting TeX syntax — the preamble legitimately contains
+    continuation lines like `a4paper,` inside a multi-line \\usepackage, so a
+    "must start with a backslash" rule produces false positives.
+    """
+    preamble = render_tex(resume_en, settings).split(r"\begin{document}")[0]
+
+    offenders = []
+    for index, line in enumerate(preamble.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("%") or "\\" in stripped:
+            continue
+        # Three or more consecutive plain words is prose, not a TeX option list.
+        if re.match(r"^[A-Za-z][a-z]*(\s+[A-Za-z][a-z]*){2,}", stripped):
+            offenders.append((index, stripped[:60]))
+
+    assert not offenders, "prose leaked into the preamble: " + "; ".join(
+        f"line {n}: {text!r}" for n, text in offenders
+    )
+
+
 def test_sections_present_in_order(resume_en: Resume, settings: Settings) -> None:
     source = render_tex(resume_en, settings)
     sections = re.findall(r"\\section\{([^}]+)\}", source)

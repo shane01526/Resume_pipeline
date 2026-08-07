@@ -22,6 +22,16 @@
 \setCJKmainfont{\VAR{fonts.cjk_serif}}
 \setCJKsansfont{\VAR{fonts.cjk_sans}}
 
+\#{ Symbols the Latin faces lack. Noto Serif has neither the bullet marker U+25AA nor the
+   arrows U+2192 and U+2194 that appear in project descriptions, so XeTeX drew them as
+   tofu boxes -- visible only in a rendered page, never in the source or the text layer.
+   Declaring one command per symbol from a font that does have them is more predictable
+   than a global fallback chain, which would silently change other glyphs too. }
+\newfontfamily\symbolfont{\VAR{fonts.symbol}}
+\newcommand{\bulletmark}{{\symbolfont \VAR{bullet_marker}}}
+\newcommand{\arrowright}{{\symbolfont \VAR{arrow_right}}}
+\newcommand{\arrowboth}{{\symbolfont \VAR{arrow_both}}}
+
 \#{ Let CJK lines break between any two ideographs (LaTeX otherwise looks for spaces,
    which Chinese does not have) and allow stretch so lines are not overfull. }
 \XeTeXlinebreaklocale "zh"
@@ -50,10 +60,25 @@
 \setlength{\parindent}{0pt}
 \pagestyle{empty}
 
-\#{ Section headings: small caps-ish tracking plus a thin rule, matching the CSS. }
+\#{ Section headings: uppercase for Latin, plus a thin rule, matching the CSS.
+
+   Two traps here, both learned by compiling.
+
+   First: the before-code argument must NOT reference the title parameter. titlesec builds
+   its internal section macro from its own sixth parameter, so a nested parameter
+   reference there aborts with "Illegal parameter number". The title text is appended
+   after before-code automatically, so an uppercasing switch belongs at the end of the
+   format argument instead.
+
+   Second: no closing brace may appear anywhere in one of these comments. The comment
+   delimiter is a single closing brace, so a brace inside the prose ends the comment and
+   the rest leaks into the document as body text -- which then errors as
+   "Missing begin document" from a line that looks fine in the template.
+
+   case-switch below is empty for Chinese; uppercasing is meaningless for CJK. }
 \titleformat{\section}
-  {\normalfont\sffamily\bfseries\fontsize{\VAR{sizes.section}}{\VAR{sizes.section_leading}}\selectfont}
-  {}{0em}{\MakeUppercase{#1}}[{\vspace{-\VAR{rules.gap}}\rule{\linewidth}{\VAR{rules.weight}}}]
+  {\normalfont\sffamily\bfseries\fontsize{\VAR{sizes.section}}{\VAR{sizes.section_leading}}\selectfont\VAR{case_switch}}
+  {}{0em}{}[{\vspace{-\VAR{rules.gap}}\rule{\linewidth}{\VAR{rules.weight}}}]
 \titlespacing*{\section}{0pt}{\VAR{spacing.section}}{\VAR{rules.gap}}
 
 \#{ Bullets: same glyph and indent as the CSS marker.
@@ -68,7 +93,7 @@
   parsep=0pt,
   topsep=\VAR{spacing.bullet_top},
   partopsep=0pt,
-  label={\footnotesize\raisebox{0.15ex}{\VAR{bullet_marker}}}
+  label={\footnotesize\raisebox{0.15ex}{\bulletmark}}
 }
 
 \#{ Title left, date right, on one baseline — the flex row from the CSS. }
