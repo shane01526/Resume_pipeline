@@ -1,0 +1,141 @@
+{#
+  Resume HTML template. One template serves both languages; `resume.lang` switches the
+  `lang` attribute, which is what print.css hooks its CJK rules onto.
+
+  Section labels come from the `labels` dict supplied by pipeline/render/html.py rather
+  than being hardcoded, so the Chinese resume gets 學歷 / 工作經歷 rather than a
+  transliterated heading.
+
+  The CSS is inlined rather than linked: Playwright loads this from a temp file, and a
+  relative stylesheet href would resolve against that temp directory.
+#}
+<!DOCTYPE html>
+<html lang="{{ 'zh-Hant' if resume.lang == 'zh' else 'en' }}">
+<head>
+<meta charset="utf-8">
+<title>{{ resume.profile.name }} — {{ labels.document_title }}</title>
+<style>
+{{ stylesheet }}
+</style>
+</head>
+<body lang="{{ 'zh-Hant' if resume.lang == 'zh' else 'en' }}">
+
+<header class="header">
+  <h1 class="name">{{ resume.profile.name }}</h1>
+  {% set contacts = resume.profile.contact_line() %}
+  {% if contacts %}
+  <div class="contact">
+    {% for value in contacts %}<span>{{ value }}</span>{% endfor %}
+  </div>
+  {% endif %}
+  {% if resume.profile.summary %}
+  <p class="summary">{{ resume.profile.summary }}</p>
+  {% endif %}
+</header>
+
+{% set education = resume.sorted_education() %}
+{% if education %}
+<section class="section">
+  <h2 class="section-title">{{ labels.education }}</h2>
+  {% for item in education %}
+  <div class="item">
+    <div class="item-head">
+      <span class="item-title">{{ item.institution }}</span>
+      <span class="item-aside">{{ fmt_education_date(item) }}</span>
+    </div>
+    {% set degree_line = fmt_degree(item) %}
+    {% if degree_line %}
+    <div class="item-sub">
+      <span>{{ degree_line }}</span>
+    </div>
+    {% endif %}
+    {% if item.bullets %}
+    <ul class="bullets">
+      {% for bullet in item.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% set experiences = resume.sorted_experiences() %}
+{% if experiences %}
+<section class="section">
+  <h2 class="section-title">{{ labels.experience }}</h2>
+  {% for item in experiences %}
+  <div class="item">
+    <div class="item-head">
+      <span class="item-title">{{ item.organization }}</span>
+      <span class="item-aside">{{ item.location or '' }}</span>
+    </div>
+    <div class="item-sub">
+      <span>{{ item.role }}</span>
+      <span class="item-aside">{{ fmt_range(item.start, item.end) }}</span>
+    </div>
+    <ul class="bullets">
+      {% for bullet in item.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% set projects = resume.sorted_projects() %}
+{% if projects %}
+<section class="section">
+  <h2 class="section-title">{{ labels.projects }}</h2>
+  {% for item in projects %}
+  <div class="item">
+    <div class="item-head">
+      <span class="item-title">{{ item.name }}</span>
+      <span class="item-aside">{{ item.context or fmt_month(item.date_) }}</span>
+    </div>
+    <ul class="bullets">
+      {% for bullet in item.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% set publications = resume.sorted_publications() %}
+{% if publications %}
+<section class="section">
+  <h2 class="section-title">{{ labels.publications }}</h2>
+  {% for item in publications %}
+  <div class="item">
+    <div class="item-head">
+      <span class="item-title">{{ item.title }}</span>
+      <span class="item-aside">{{ item.venue or fmt_month(item.date_) }}</span>
+    </div>
+    {% if item.authors %}
+    <div class="item-sub"><span>{{ item.authors }}</span></div>
+    {% endif %}
+    {% if item.bullets %}
+    <ul class="bullets">
+      {% for bullet in item.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% set skill_groups = resume.skills_by_category() %}
+{% if skill_groups %}
+<section class="section">
+  <h2 class="section-title">{{ labels.skills }}</h2>
+  <div class="skills">
+    {% for category, skills in skill_groups.items() %}
+    <div class="skill-row">
+      <span class="skill-label">{{ labels.skill_categories[category.value] }}</span>
+      <span class="skill-values">{{ skills | map('format_skill') | join(labels.skill_join) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+</body>
+</html>

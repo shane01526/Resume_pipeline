@@ -1,0 +1,188 @@
+\#{
+  LaTeX resume template, compiled with Tectonic (XeTeX engine).
+
+  Jinja's delimiters are remapped in pipeline/render/latex.py because the defaults
+  collide with LaTeX's own braces. In this file: statements use a backslash-BLOCK tag,
+  expressions a backslash-VAR tag, comments a backslash-hash tag like this one. Note
+  that a single closing brace ends any of them, so an expression must not contain one.
+
+  Geometry and type sizes mirror templates/styles/print.css. When a token changes there,
+  change it here too — the two engines must produce the same page.
+}
+\documentclass[11pt,a4paper]{article}
+
+\#{ --- Fonts. fontspec requires XeTeX/LuaTeX; Tectonic gives us XeTeX. --- }
+\usepackage{fontspec}
+\usepackage{xeCJK}
+
+\#{ Noto covers Latin and CJK in one family, so a stray English word inside Chinese
+   text keeps a consistent face rather than falling back to something mismatched. }
+\setmainfont{\VAR{fonts.serif}}
+\setsansfont{\VAR{fonts.sans}}
+\setCJKmainfont{\VAR{fonts.cjk_serif}}
+\setCJKsansfont{\VAR{fonts.cjk_sans}}
+
+\#{ Let CJK lines break between any two ideographs (LaTeX otherwise looks for spaces,
+   which Chinese does not have) and allow stretch so lines are not overfull. }
+\XeTeXlinebreaklocale "zh"
+\XeTeXlinebreakskip = 0pt plus 1pt minus 0.1pt
+
+\usepackage[
+  a4paper,
+  top=\VAR{geometry.margin_y},
+  bottom=\VAR{geometry.margin_y},
+  left=\VAR{geometry.margin_x},
+  right=\VAR{geometry.margin_x}
+]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+
+\definecolor{ink}{HTML}{111111}
+\definecolor{inkmuted}{HTML}{444444}
+\color{ink}
+
+\#{ Ragged right: justified text opens rivers in a narrow single column. }
+\RaggedRight
+\setlength{\parindent}{0pt}
+\pagestyle{empty}
+
+\#{ Section headings: small caps-ish tracking plus a thin rule, matching the CSS. }
+\titleformat{\section}
+  {\normalfont\sffamily\bfseries\fontsize{\VAR{sizes.section}}{\VAR{sizes.section_leading}}\selectfont}
+  {}{0em}{\MakeUppercase{#1}}[{\vspace{-\VAR{rules.gap}}\rule{\linewidth}{\VAR{rules.weight}}}]
+\titlespacing*{\section}{0pt}{\VAR{spacing.section}}{\VAR{rules.gap}}
+
+\#{ Bullets: same glyph and indent as the CSS marker. }
+\setlist[itemize]{
+  leftmargin=\VAR{spacing.bullet_indent},
+  itemsep=\VAR{spacing.bullet},
+  parsep=0pt,
+  topsep=\VAR{spacing.bullet_top},
+  partopsep=0pt,
+  label={\footnotesize\raisebox{0.15ex}{$\blacksquare$}}
+}
+
+\#{ Title left, date right, on one baseline — the flex row from the CSS. }
+\newcommand{\entryhead}[2]{%
+  \begin{tabularx}{\linewidth}{@{}Xr@{}}
+    \textbf{\fontsize{\VAR{sizes.item_title}}{\VAR{sizes.item_title_leading}}\selectfont #1} &
+    {\color{inkmuted}\fontsize{\VAR{sizes.item_meta}}{\VAR{sizes.item_meta_leading}}\selectfont #2}
+  \end{tabularx}%
+}
+
+\#{ Second line: role and dates. Upright in Chinese — synthesised obliques on CJK
+   faces look broken, so weight carries the distinction instead. }
+\newcommand{\entrysub}[2]{%
+  \begin{tabularx}{\linewidth}{@{}Xr@{}}
+    {\color{inkmuted}\VAR{emph_open}\fontsize{\VAR{sizes.item_meta}}{\VAR{sizes.item_meta_leading}}\selectfont #1\VAR{emph_close}} &
+    {\color{inkmuted}\fontsize{\VAR{sizes.item_meta}}{\VAR{sizes.item_meta_leading}}\selectfont #2}
+  \end{tabularx}%
+}
+
+\fontsize{\VAR{sizes.body}}{\VAR{sizes.body_leading}}\selectfont
+
+\begin{document}
+
+\#{ --- Header --- }
+\begin{center}
+  {\sffamily\bfseries\fontsize{\VAR{sizes.name}}{\VAR{sizes.name_leading}}\selectfont
+   \VAR{tex(resume.profile.name)}}\\[\VAR{spacing.after_name}]
+\BLOCK{ set contacts = resume.profile.contact_line() }
+\BLOCK{ if contacts }
+  {\color{inkmuted}\fontsize{\VAR{sizes.contact}}{\VAR{sizes.contact_leading}}\selectfont
+   \VAR{contacts | map('tex') | join(separators.contact)}}
+\BLOCK{ endif }
+\BLOCK{ if resume.profile.summary }
+  \\[\VAR{spacing.after_name}]
+  {\fontsize{\VAR{sizes.body}}{\VAR{sizes.body_leading}}\selectfont \VAR{tex(resume.profile.summary)}}
+\BLOCK{ endif }
+\end{center}
+
+\#{ --- Education --- }
+\BLOCK{ set education = resume.sorted_education() }
+\BLOCK{ if education }
+\section{\VAR{tex(labels.education)}}
+\BLOCK{ for item in education }
+\entryhead{\VAR{tex(item.institution)}}{\VAR{tex(fmt_education_date(item))}}
+\BLOCK{ set degree_line = fmt_degree(item) }
+\BLOCK{ if degree_line }
+\entrysub{\VAR{tex(degree_line)}}{}
+\BLOCK{ endif }
+\BLOCK{ if item.bullets }
+\begin{itemize}
+\BLOCK{ for bullet in item.bullets }
+  \item \VAR{tex(bullet)}
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+\BLOCK{ if not loop.last }\vspace{\VAR{spacing.item}}\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+\#{ --- Experience --- }
+\BLOCK{ set experiences = resume.sorted_experiences() }
+\BLOCK{ if experiences }
+\section{\VAR{tex(labels.experience)}}
+\BLOCK{ for item in experiences }
+\entryhead{\VAR{tex(item.organization)}}{\VAR{tex(item.location or '')}}
+\entrysub{\VAR{tex(item.role)}}{\VAR{tex(fmt_range(item.start, item.end))}}
+\begin{itemize}
+\BLOCK{ for bullet in item.bullets }
+  \item \VAR{tex(bullet)}
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ if not loop.last }\vspace{\VAR{spacing.item}}\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+\#{ --- Projects --- }
+\BLOCK{ set projects = resume.sorted_projects() }
+\BLOCK{ if projects }
+\section{\VAR{tex(labels.projects)}}
+\BLOCK{ for item in projects }
+\entryhead{\VAR{tex(item.name)}}{\VAR{tex(item.context or fmt_month(item.date_))}}
+\begin{itemize}
+\BLOCK{ for bullet in item.bullets }
+  \item \VAR{tex(bullet)}
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ if not loop.last }\vspace{\VAR{spacing.item}}\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+\#{ --- Publications --- }
+\BLOCK{ set publications = resume.sorted_publications() }
+\BLOCK{ if publications }
+\section{\VAR{tex(labels.publications)}}
+\BLOCK{ for item in publications }
+\entryhead{\VAR{tex(item.title)}}{\VAR{tex(item.venue or fmt_month(item.date_))}}
+\BLOCK{ if item.authors }
+\entrysub{\VAR{tex(item.authors)}}{}
+\BLOCK{ endif }
+\BLOCK{ if item.bullets }
+\begin{itemize}
+\BLOCK{ for bullet in item.bullets }
+  \item \VAR{tex(bullet)}
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+\BLOCK{ if not loop.last }\vspace{\VAR{spacing.item}}\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+\#{ --- Skills: one row per category, label left, values flowing right --- }
+\BLOCK{ set skill_groups = resume.skills_by_category() }
+\BLOCK{ if skill_groups }
+\section{\VAR{tex(labels.skills)}}
+\begin{itemize}[label={},leftmargin=0pt,itemsep=\VAR{spacing.bullet}]
+\BLOCK{ for category, skills in skill_groups.items() }
+  \item \textbf{\VAR{tex(labels.skill_categories[category.value])}:}\ \VAR{skills | map('fmt_skill_tex') | join(skill_join)}
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+
+\end{document}

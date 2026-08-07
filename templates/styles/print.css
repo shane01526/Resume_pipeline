@@ -1,0 +1,290 @@
+/* Resume print stylesheet — the single source of truth for layout geometry.
+ *
+ * The custom properties in :root are the shared design tokens. templates/resume.tex.j2
+ * and pipeline/render/docx.py mirror these numbers; changing one here means changing
+ * the matching constant there, or the three renderers drift apart.
+ *
+ * Visual target (matching the existing resume): single column, thin rules under section
+ * headings, no colour blocks, no sidebar. Serif for headings, sans for body — the
+ * contrast reads as "professional" without needing decoration.
+ */
+
+:root {
+  /* --- Page geometry --- */
+  --page-width: 210mm;          /* A4 */
+  --page-height: 297mm;
+  --margin-x: 14mm;
+  --margin-y: 12mm;
+
+  /* --- Type scale (pt) --- */
+  --size-name: 17pt;
+  --size-contact: 9pt;
+  --size-section: 10.5pt;       /* EDUCATION, EXPERIENCE, ... */
+  --size-item-title: 10.5pt;    /* Organization / Institution / Project name */
+  --size-item-meta: 9.5pt;      /* Role, dates, location */
+  --size-body: 9.5pt;           /* Bullets */
+
+  /* --- Rhythm --- */
+  --leading-body: 1.36;
+  --leading-tight: 1.22;
+  --space-section: 4.2mm;       /* Above a section heading */
+  --space-item: 2.6mm;          /* Between entries in a section */
+  --space-bullet: 0.7mm;        /* Between bullets in one entry */
+
+  /* --- Rules --- */
+  --rule-weight: 0.5pt;
+  --rule-color: #111;
+  --rule-gap: 1.1mm;            /* Between heading text and its rule */
+
+  /* --- Ink --- */
+  --ink: #111;
+  --ink-muted: #444;            /* Dates, locations, contexts */
+
+  /* --- Fonts ---
+   * Noto CJK carries both scripts, so a Chinese resume needs no separate stack and a
+   * stray English word inside Chinese text does not fall back to a mismatched face. */
+  --font-serif: "Source Serif 4", "Noto Serif", "Noto Serif CJK TC", Georgia, serif;
+  --font-sans: "Inter", "Noto Sans", "Noto Sans CJK TC", Helvetica, Arial, sans-serif;
+  --font-serif-zh: "Noto Serif CJK TC", "Source Serif 4", Georgia, serif;
+  --font-sans-zh: "Noto Sans CJK TC", "Inter", Helvetica, Arial, sans-serif;
+
+  /* Chinese needs marginally looser leading than Latin at the same point size —
+   * denser glyphs read as cramped otherwise. */
+  --leading-body-zh: 1.5;
+}
+
+@page {
+  size: A4;
+  margin: var(--margin-y) var(--margin-x);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+  color: var(--ink);
+  /* Ragged right. Justified text opens rivers in a narrow single column. */
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+
+body[lang="zh-Hant"] {
+  font-family: var(--font-sans-zh);
+  line-height: var(--leading-body-zh);
+}
+
+/* --- Header ------------------------------------------------------------- */
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-section);
+}
+
+.name {
+  font-family: var(--font-serif);
+  font-size: var(--size-name);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+
+body[lang="zh-Hant"] .name {
+  font-family: var(--font-serif-zh);
+  letter-spacing: 0.08em; /* CJK needs more tracking at display size */
+}
+
+.contact {
+  font-size: var(--size-contact);
+  color: var(--ink-muted);
+  margin-top: 1.2mm;
+}
+
+.contact span + span::before {
+  content: "·";
+  margin: 0 1.6mm;
+  color: var(--ink-muted);
+}
+
+.summary {
+  font-size: var(--size-body);
+  margin-top: 2mm;
+  text-align: center;
+}
+
+/* --- Sections ----------------------------------------------------------- */
+
+.section {
+  margin-top: var(--space-section);
+}
+
+/* The first section sits directly under the header, which already has its own
+ * bottom margin; doubling them pushes content down for no reason. */
+.section:first-of-type {
+  margin-top: 0;
+}
+
+.section-title {
+  font-family: var(--font-serif);
+  font-size: var(--size-section);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0 0 var(--rule-gap) 0;
+  padding-bottom: var(--rule-gap);
+  border-bottom: var(--rule-weight) solid var(--rule-color);
+}
+
+body[lang="zh-Hant"] .section-title {
+  font-family: var(--font-serif-zh);
+  text-transform: none; /* uppercase is meaningless for CJK */
+  letter-spacing: 0.14em;
+}
+
+/* --- Entries ------------------------------------------------------------ */
+
+.item {
+  margin-top: var(--space-item);
+  /* Never split an entry across pages: a header stranded at the foot of page 1 with
+   * its bullets on page 2 is the single worst layout failure for a resume. */
+  break-inside: avoid;
+}
+
+.section-title + .item {
+  margin-top: 1.8mm;
+}
+
+/* Title left, date right, on one baseline. */
+.item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4mm;
+}
+
+.item-title {
+  font-size: var(--size-item-title);
+  font-weight: 600;
+}
+
+.item-aside {
+  font-size: var(--size-item-meta);
+  color: var(--ink-muted);
+  white-space: nowrap; /* a wrapped date range looks like a typo */
+  flex-shrink: 0;
+}
+
+.item-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4mm;
+  font-size: var(--size-item-meta);
+  font-style: italic;
+  color: var(--ink-muted);
+  margin-top: 0.3mm;
+}
+
+body[lang="zh-Hant"] .item-sub {
+  /* Synthesised obliques on CJK faces look broken; weight carries the distinction. */
+  font-style: normal;
+}
+
+.item-sub .item-aside {
+  font-style: normal;
+}
+
+/* --- Bullets ------------------------------------------------------------ */
+
+.bullets {
+  list-style: none;
+  margin: 1mm 0 0 0;
+  padding: 0;
+}
+
+.bullets li {
+  position: relative;
+  padding-left: 3.4mm;
+  margin-top: var(--space-bullet);
+}
+
+.bullets li:first-child {
+  margin-top: 0;
+}
+
+/* Marker drawn manually so its size and offset are independent of the font's
+ * list-marker metrics, which differ between the Latin and CJK faces. */
+.bullets li::before {
+  content: "▪";
+  position: absolute;
+  left: 0;
+  top: -0.15em;
+  font-size: 0.82em;
+  color: var(--ink);
+}
+
+/* --- Skills ------------------------------------------------------------- */
+
+/* One row per category: label in the left column, values flowing in the right. */
+.skills {
+  margin-top: 1.8mm;
+}
+
+.skill-row {
+  display: flex;
+  gap: 2.4mm;
+  margin-top: var(--space-bullet);
+  break-inside: avoid;
+}
+
+.skill-label {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.skill-label::after {
+  content: ":";
+}
+
+.skill-values {
+  color: var(--ink);
+}
+
+/* --- Print ------------------------------------------------------------- */
+
+@media print {
+  body {
+    /* Playwright's page.pdf() honours this; without it the muted greys wash out. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Avoid a section heading landing as the last line on a page. */
+  .section-title {
+    break-after: avoid;
+  }
+}
+
+/* --- Screen preview ----------------------------------------------------- */
+
+/* Only for opening the HTML directly in a browser while iterating on the template.
+ * Playwright renders with print CSS, so none of this reaches the PDF. */
+@media screen {
+  body {
+    max-width: var(--page-width);
+    margin: 8mm auto;
+    padding: var(--margin-y) var(--margin-x);
+    background: #fff;
+    box-shadow: 0 1px 12px rgba(0, 0, 0, 0.14);
+  }
+}
