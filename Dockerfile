@@ -80,9 +80,14 @@ COPY --from=builder /opt/tectonic-cache /opt/tectonic-cache
 
 WORKDIR /app
 
-# Dependencies before source, so a code edit doesn't reinstall the world.
-COPY pyproject.toml ./
-RUN pip install --upgrade pip && pip install .
+# Dependencies before source, so editing a .py file doesn't reinstall the world.
+#
+# `pip install .` cannot be used at this point: setuptools reads the package list from
+# pyproject.toml and fails with "package directory 'pipeline' does not exist" when the
+# source isn't there yet. requirements.txt carries the same pins and is checked against
+# pyproject.toml by tests/test_packaging.py, so the two cannot drift.
+COPY requirements.txt ./
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Chromium plus the system libraries it needs. `--with-deps` resolves those from the
 # distro rather than us guessing at the list.
@@ -94,6 +99,10 @@ COPY web/ ./web/
 COPY templates/ ./templates/
 COPY scripts/ ./scripts/
 COPY docker/ ./docker/
+
+# Now that the source is present, install the package itself so `import pipeline` works
+# from any working directory. --no-deps because the dependencies are already resolved above.
+RUN pip install --no-deps -e .
 
 # state/ and output/ are populated by `git clone` at runtime (see publish.py): the repo
 # IS the database, so the container pulls the current state on start rather than shipping

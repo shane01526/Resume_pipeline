@@ -56,14 +56,19 @@
   {}{0em}{\MakeUppercase{#1}}[{\vspace{-\VAR{rules.gap}}\rule{\linewidth}{\VAR{rules.weight}}}]
 \titlespacing*{\section}{0pt}{\VAR{spacing.section}}{\VAR{rules.gap}}
 
-\#{ Bullets: same glyph and indent as the CSS marker. }
+\#{ Bullets: same glyph and indent as the CSS marker.
+
+   The marker is the literal U+25AA glyph, not \blacksquare — that command needs amssymb,
+   and its absence made every LaTeX render fail with "Undefined control sequence". Using
+   the same character as print.css and docx.py also keeps the three renderers identical
+   rather than approximately similar. }
 \setlist[itemize]{
   leftmargin=\VAR{spacing.bullet_indent},
   itemsep=\VAR{spacing.bullet},
   parsep=0pt,
   topsep=\VAR{spacing.bullet_top},
   partopsep=0pt,
-  label={\footnotesize\raisebox{0.15ex}{$\blacksquare$}}
+  label={\footnotesize\raisebox{0.15ex}{\VAR{bullet_marker}}}
 }
 
 \#{ Title left, date right, on one baseline — the flex row from the CSS. }

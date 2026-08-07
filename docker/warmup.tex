@@ -41,7 +41,10 @@ Warm-up: Latin text, an en dash --, and an ampersand \&.
   Left cell & Right cell
 \end{tabularx}
 
-\begin{itemize}[leftmargin=3.4mm,label={\footnotesize\raisebox{0.15ex}{$\blacksquare$}}]
+% U+25AA literal glyph, exactly as resume.tex.j2 uses it. Keeping these in sync is the
+% point of this file: an earlier version used \blacksquare here and in the template, and
+% this warm-up is what surfaced that it needs amssymb, which neither file loads.
+\begin{itemize}[leftmargin=3.4mm,label={\footnotesize\raisebox{0.15ex}{▪}}]
   \item A bullet, to pull in enumitem's label handling.
 \end{itemize}
 \end{document}

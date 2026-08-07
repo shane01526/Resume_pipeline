@@ -78,6 +78,11 @@ FONTS = {
     "cjk_sans": "Noto Sans CJK TC",
 }
 
+# U+25AA, matching --bullet in print.css and BULLET in docx.py. Deliberately the literal
+# glyph rather than \blacksquare, which requires amssymb — its absence made every LaTeX
+# render abort with "Undefined control sequence".
+BULLET_MARKER = "▪"
+
 # --- TeX escaping -----------------------------------------------------------
 # Replacements must be applied in ONE pass. Sequential str.replace() calls corrupt each
 # other: `\` → `\textbackslash{}` inserts braces that a later `{` → `\{` rule then
@@ -161,6 +166,7 @@ def render_tex(resume: Resume, settings: Settings) -> str:
         spacing=SPACING,
         rules=RULES,
         fonts=FONTS,
+        bullet_marker=BULLET_MARKER,
         # Upright rather than italic for Chinese: synthesised obliques on CJK faces
         # look broken, matching the `font-style: normal` rule in print.css.
         emph_open="" if is_zh else r"\itshape ",

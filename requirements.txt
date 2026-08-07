@@ -1,0 +1,19 @@
+# Runtime dependencies, mirroring [project].dependencies in pyproject.toml.
+#
+# Why this file exists: the Dockerfile installs dependencies before copying the source, so
+# a code edit doesn't reinstall everything. `pip install .` can't do that — setuptools
+# needs the package directories present and fails without them.
+#
+# pyproject.toml stays the source of truth for the package metadata; this list must match
+# it exactly, and tests/test_packaging.py fails if the two drift.
+anthropic>=0.69.0
+fastapi>=0.118.0
+httpx>=0.28.0
+jinja2>=3.1.0
+pydantic>=2.11.0
+pydantic-settings>=2.10.0
+pypdf>=6.0.0
+python-docx>=1.1.2
+python-pptx>=1.0.2
+uvicorn[standard]>=0.37.0
+playwright>=1.55.0
