@@ -83,7 +83,9 @@ class ResumeItem(BaseModel):
     )
     priority: int = Field(default=0, description="Higher sorts first within its section")
     highlight: bool = False
-    source: str | None = Field(default=None, description="Source file a machine extraction came from")
+    source: str | None = Field(
+        default=None, description="Source file a machine extraction came from"
+    )
     confidence: Confidence | None = None
 
     def stable_key(self) -> str:  # pragma: no cover - overridden by every subclass
@@ -217,7 +219,8 @@ class Resume(BaseModel):
     def sorted_experiences(self) -> list[Experience]:
         # Ongoing roles (end=None) first, then most recent end date.
         return sorted(
-            self.experiences, key=lambda e: (-e.priority, _end_sort_key(e.end), -e.start.toordinal())
+            self.experiences,
+            key=lambda e: (-e.priority, _end_sort_key(e.end), -e.start.toordinal()),
         )
 
     def sorted_projects(self) -> list[Project]:
@@ -237,7 +240,13 @@ class Resume(BaseModel):
 
     def all_items(self) -> list[ResumeItem]:
         """Every section entry, for diffing. Order is irrelevant; keys are what match."""
-        return [*self.education, *self.experiences, *self.projects, *self.publications, *self.skills]
+        return [
+            *self.education,
+            *self.experiences,
+            *self.projects,
+            *self.publications,
+            *self.skills,
+        ]
 
 
 def _end_sort_key(value: date | None) -> int:
@@ -248,5 +257,5 @@ def _end_sort_key(value: date | None) -> int:
     otherwise gives newest-first among real dates.
     """
     if value is None:
-        return -10**9
+        return -(10**9)
     return -value.toordinal()

@@ -282,7 +282,9 @@ class NotionReader:
             role = _title(props, "Role")
             organization = _select(props, "Organization") or _rich_text(props, "Organization")
             if not (start and role and organization):
-                log.warning("skipping experience %s: missing Role, Organization, or Start", row["id"])
+                log.warning(
+                    "skipping experience %s: missing Role, Organization, or Start", row["id"]
+                )
                 continue
             bullets = self.bullets.get(row["id"], Bullets([], [])).en
             if not bullets:

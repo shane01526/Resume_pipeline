@@ -1,0 +1,79 @@
+# Render Blueprint. Apply with: Render dashboard → New → Blueprint → point at this repo.
+#
+# Two services from one image:
+#   - web:  serves the diff page, Slack endpoints, download links, and runs the pipeline
+#   - cron: a thin trigger that POSTs to the web service once a week
+#
+# The cron job deliberately does no work itself. If both containers ran pipeline stages
+# they would race on state/ (which is the git repo), and the loser's commit would be
+# rejected. One writer, one scheduler.
+
+services:
+  - type: web
+    name: resume-pipeline
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # Starter, not Free: Chromium plus Tectonic needs ~1GB peak RSS and Free caps at
+    # 512MB, so renders OOM. Free also spins down after inactivity, which would make the
+    # weekly cron trigger time out on a cold start.
+    plan: starter
+    region: singapore
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      # --- Secrets: set these in the dashboard, never in this file ---
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: NOTION_TOKEN
+        sync: false
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+      - key: SLACK_DM_CHANNEL
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      # Signs approval links, so a guessed run ID cannot publish.
+      - key: APPROVAL_HMAC_SECRET
+        generateValue: true
+      # Authenticates the cron job's POST /api/runs.
+      - key: TRIGGER_TOKEN
+        generateValue: true
+
+      # --- Non-secret configuration ---
+      - key: GITHUB_REPO
+        value: shane01526/Resume_pipeline
+      - key: APPROVAL_TIMEOUT_HOURS
+        value: "72"
+      - key: RENDERERS
+        value: html,latex,docx
+      # Must match the deployed URL or Slack approval links point at localhost. Render
+      # exposes this automatically for the service itself.
+      - key: PUBLIC_BASE_URL
+        fromService:
+          type: web
+          name: resume-pipeline
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: cron
+    name: resume-pipeline-cron
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: singapore
+    # Render schedules in UTC. 19:00 Sunday UTC = 03:00 Monday Asia/Taipei, so a run is
+    # waiting for review when the week starts.
+    schedule: "0 19 * * 0"
+    dockerCommand: python -m pipeline.trigger_remote
+    envVars:
+      - key: TRIGGER_TOKEN
+        fromService:
+          type: web
+          name: resume-pipeline
+          envVarKey: TRIGGER_TOKEN
+      - key: PUBLIC_BASE_URL
+        fromService:
+          type: web
+          name: resume-pipeline
+          envVarKey: RENDER_EXTERNAL_URL

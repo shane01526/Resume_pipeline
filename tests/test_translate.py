@@ -110,13 +110,13 @@ async def test_experience_override_without_role_keeps_english_role(
     assert target.role == resume_en.experiences[0].role
 
 
-async def test_skill_override_splits_name_and_detail(
-    resume_en: Resume, settings: Settings
-) -> None:
+async def test_skill_override_splits_name_and_detail(resume_en: Resume, settings: Settings) -> None:
     """Full-width bar separates the two, matching the master page's documented format."""
     skill = next(s for s in resume_en.skills if s.name == "English")
     assert skill.notion_page_id
-    zh = await translate_resume(resume_en, FakeReader({skill.notion_page_id: "英文｜流利"}), settings)
+    zh = await translate_resume(
+        resume_en, FakeReader({skill.notion_page_id: "英文｜流利"}), settings
+    )
     target = next(s for s in zh.skills if s.notion_page_id == skill.notion_page_id)
     assert target.name == "英文"
     assert target.detail == "流利"

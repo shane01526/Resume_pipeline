@@ -80,9 +80,7 @@ async def translate_batch(texts: list[str], settings: Settings) -> list[str]:
     if len(result.translations) != len(texts):
         # A length mismatch would silently shift every subsequent field onto the wrong
         # entry, which is worse than leaving the resume in English.
-        raise LLMError(
-            f"expected {len(texts)} translations, got {len(result.translations)}"
-        )
+        raise LLMError(f"expected {len(texts)} translations, got {len(result.translations)}")
     return result.translations
 
 
@@ -129,7 +127,9 @@ async def translate_resume(
         queue(item.degree, ["education", index, "degree"])
         queue(item.field, ["education", index, "field"])
         queue(item.coursework, ["education", index, "coursework"])
-        _handle_bullets(data["education"][index], item, bullets_by_page, pending, ["education", index])
+        _handle_bullets(
+            data["education"][index], item, bullets_by_page, pending, ["education", index]
+        )
 
     # --- Experiences ---
     for index, item in enumerate(resume.experiences):
@@ -159,7 +159,9 @@ async def translate_resume(
         else:
             queue(item.name, ["projects", index, "name"])
         queue(item.context, ["projects", index, "context"])
-        _handle_bullets(data["projects"][index], item, bullets_by_page, pending, ["projects", index])
+        _handle_bullets(
+            data["projects"][index], item, bullets_by_page, pending, ["projects", index]
+        )
 
     # --- Publications ---
     for index, item in enumerate(resume.publications):

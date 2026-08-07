@@ -1,0 +1,47 @@
+% Tectonic package-cache warm-up, run at image build time.
+%
+% Purpose: make the first real render fast and offline-safe. Tectonic downloads LaTeX
+% packages on demand, so without this the first resume compile pays a multi-second fetch
+% — and fails outright if the container has restricted egress.
+%
+% This must load every package templates/resume.tex.j2 uses and exercise the CJK font
+% path, or the cache ends up missing exactly what the real document needs. When you add
+% a \usepackage to that template, add it here too.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage[a4paper,top=12mm,bottom=12mm,left=14mm,right=14mm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+
+\setmainfont{Noto Serif}
+\setsansfont{Noto Sans}
+\setCJKmainfont{Noto Serif CJK TC}
+\setCJKsansfont{Noto Sans CJK TC}
+
+\XeTeXlinebreaklocale "zh"
+\XeTeXlinebreakskip = 0pt plus 1pt minus 0.1pt
+
+\pagestyle{empty}
+
+\begin{document}
+% Both scripts, so the CJK and Latin font paths are both resolved and cached.
+Warm-up: Latin text, an en dash --, and an ampersand \&.
+
+中文暖機：確認 xeCJK 與 Noto CJK 字型可正常解析、斷行。
+
+% The same constructs the real template uses, so their packages are exercised rather
+% than merely loaded.
+\begin{tabularx}{\linewidth}{@{}Xr@{}}
+  Left cell & Right cell
+\end{tabularx}
+
+\begin{itemize}[leftmargin=3.4mm,label={\footnotesize\raisebox{0.15ex}{$\blacksquare$}}]
+  \item A bullet, to pull in enumitem's label handling.
+\end{itemize}
+\end{document}

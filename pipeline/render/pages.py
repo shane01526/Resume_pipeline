@@ -36,7 +36,9 @@ def pdftoppm_available() -> bool:
     return shutil.which("pdftoppm") is not None
 
 
-def pdf_to_pngs(pdf: Path, out_dir: Path, settings: Settings, *, prefix: str = PAGE_STEM) -> list[Path]:
+def pdf_to_pngs(
+    pdf: Path, out_dir: Path, settings: Settings, *, prefix: str = PAGE_STEM
+) -> list[Path]:
     """Rasterize every page of `pdf` into `out_dir` as `<prefix>-01.png`, ....
 
     Returns the written paths in page order. Raises if poppler is unavailable — callers

@@ -37,7 +37,9 @@ def resume_zh(resume_en: Resume) -> Resume:
     data["profile"]["name"] = "吳雨諠"
     data["experiences"][0]["organization"] = "國泰金控 DDT AI"
     data["experiences"][0]["role"] = "ML/AI 工程師實習生"
-    data["experiences"][0]["bullets"] = ["優化 AI News agent 的編排邏輯、資料 ETL 與 AWS 部署架構。"]
+    data["experiences"][0]["bullets"] = [
+        "優化 AI News agent 的編排邏輯、資料 ETL 與 AWS 部署架構。"
+    ]
     data["education"][0]["institution"] = "國立陽明交通大學"
     data["education"][0]["degree"] = "碩士"
     data["education"][0]["field"] = "語言學"
@@ -134,7 +136,12 @@ def test_document_is_complete(resume_en: Resume, settings: Settings) -> None:
 
 def test_zh_uses_chinese_labels(resume_zh: Resume, settings: Settings) -> None:
     source = render_tex(resume_zh, settings)
-    assert re.findall(r"\\section\{([^}]+)\}", source) == ["學歷", "工作經歷", "專案成果", "專業技能"]
+    assert re.findall(r"\\section\{([^}]+)\}", source) == [
+        "學歷",
+        "工作經歷",
+        "專案成果",
+        "專業技能",
+    ]
 
 
 def test_zh_field_precedes_degree(resume_zh: Resume, settings: Settings) -> None:
@@ -156,9 +163,7 @@ def test_zh_partial_translation_stays_readable(resume_zh: Resume, settings: Sett
 def test_zh_drops_italics(resume_zh: Resume, settings: Settings) -> None:
     """Synthesised obliques on CJK faces look broken; weight carries the distinction."""
     assert r"\itshape" not in render_tex(resume_zh, settings)
-    assert r"\itshape" in render_tex(
-        resume_zh.model_copy(update={"lang": "en"}), get_settings()
-    )
+    assert r"\itshape" in render_tex(resume_zh.model_copy(update={"lang": "en"}), get_settings())
 
 
 def test_zh_uses_looser_leading() -> None:

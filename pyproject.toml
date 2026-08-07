@@ -39,6 +39,20 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# Long lines here are single unsplittable strings — CSS rules and inline HTML in the
+# server-rendered review page. Wrapping them mid-declaration hurts readability rather
+# than helping it.
+"web/diff_page.py" = ["E501"]
+# Error messages that name a fix ("run pip install X", the Notion share step). Splitting
+# them across lines makes them harder to read in a log, which is the only place they appear.
+"pipeline/render/html.py" = ["E501"]
+"pipeline/render/latex.py" = ["E501"]
+"pipeline/notion_client.py" = ["E501"]
+# Chinese Slack copy; CJK renders double-width, so the character count overstates the
+# visual length.
+"pipeline/notify_slack.py" = ["E501"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

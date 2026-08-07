@@ -9,15 +9,12 @@ three stages downstream.
 from __future__ import annotations
 
 import logging
-from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 
 from pipeline.config import Settings
 
 log = logging.getLogger(__name__)
-
-T = TypeVar("T", bound=BaseModel)
 
 
 class LLMError(RuntimeError):
@@ -36,7 +33,7 @@ def _client(settings: Settings):  # noqa: ANN202 - anthropic types are import-ti
     return anthropic.AsyncAnthropic(api_key=key)
 
 
-async def structured(
+async def structured[T: BaseModel](
     prompt: str,
     schema: type[T],
     settings: Settings,
