@@ -1,0 +1,17 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Atomic-write temp files (see pipeline/state.py)
+*.tmp
+
+# Tectonic downloads its package cache on first build; not source.
+.tectonic-cache/
+
+# Local scratch renders. Published artifacts live in output/ and ARE committed.
+scratch/

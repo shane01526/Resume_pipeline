@@ -1,0 +1,44 @@
+[project]
+name = "resume-pipeline"
+version = "0.1.0"
+description = "Automated bilingual resume pipeline: Notion as source of truth, three render engines, human-in-the-loop approval via Slack."
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.69.0",
+    "fastapi>=0.118.0",
+    "uvicorn[standard]>=0.37.0",
+    "httpx>=0.28.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.10.0",
+    "jinja2>=3.1.0",
+    "playwright>=1.55.0",
+    "python-docx>=1.1.2",
+    "python-pptx>=1.0.2",
+    "pypdf>=6.0.0",
+    "python-multipart>=0.0.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.0",
+    "pytest-asyncio>=1.0.0",
+    "ruff>=0.13.0",
+]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["pipeline", "pipeline.render", "web"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

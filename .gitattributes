@@ -1,0 +1,18 @@
+# Edited on Windows, executed on Linux (Render). Normalize to LF in the repo so
+# Tectonic, Playwright, and shell scripts don't trip over CRLF.
+* text=auto eol=lf
+
+# PowerShell is the exception — it is only ever run on Windows.
+*.ps1 text eol=crlf
+
+# Binary artifacts: never touch, never diff as text.
+*.pdf binary
+*.docx binary
+*.pptx binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
