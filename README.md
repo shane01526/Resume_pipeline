@@ -69,7 +69,7 @@ https://<render-url>/resume/en.docx    https://<render-url>/resume/zh.docx
 
 ### 2. Slack app
 
-- Bot scopes：`chat:write`、`commands`、`files:write`、`im:write`
+- Bot scopes：`chat:write`、`commands`、`im:write`（只呼叫 `chat.postMessage`；PDF 掛在 Notion 與下載連結，不上傳到 Slack）
 - Slash command `/resume` → `https://<render-url>/slack/commands`
 - Interactivity Request URL → `https://<render-url>/slack/interactions`
 
