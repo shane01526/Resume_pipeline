@@ -44,6 +44,10 @@ services:
       # --- Non-secret configuration ---
       - key: GITHUB_REPO
         value: shane01526/Resume_pipeline
+      # Read by docker/entrypoint.sh as well as publish.py — the branch it checks out and
+      # pushes to.
+      - key: GIT_BRANCH
+        value: main
       - key: APPROVAL_TIMEOUT_HOURS
         value: "72"
       - key: RENDERERS
@@ -65,6 +69,9 @@ services:
     # Render schedules in UTC. 19:00 Sunday UTC = 03:00 Monday Asia/Taipei, so a run is
     # waiting for review when the week starts.
     schedule: "0 19 * * 0"
+    # Overrides CMD, not ENTRYPOINT — so the git checkout still runs first. This job only
+    # POSTs to the web service, so it wouldn't strictly need the checkout, but keeping one
+    # entrypoint for both services means there's one startup path to reason about.
     dockerCommand: python -m pipeline.trigger_remote
     envVars:
       - key: TRIGGER_TOKEN

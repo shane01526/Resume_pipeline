@@ -58,34 +58,66 @@ https://<render-url>/resume/en.docx    https://<render-url>/resume/zh.docx
 
 ## 初次設定
 
+### 所有憑證只填在 Render 一個地方
+
+先講清楚方向，因為這件事最容易搞混：
+
+- **Notion / Slack / GitHub / Anthropic 的 token 全部只填進 Render 的 Environment。**
+- **你不需要把任何 token 填回 Slack 或 Notion。** 在 Slack 設定頁你只填「我的伺服器在哪」
+  （兩個 Request URL）；token 是 Slack 發給你的，方向相反。Notion 也只需要知道
+  「這個 integration 可以讀這一頁」，不需要知道 Render 存在。
+
+### 需要你手動準備的六個值
+
+| 變數 | 從哪裡拿 |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | <https://platform.claude.com> → API keys |
+| `NOTION_TOKEN` | Notion internal integration（下面第 1 步），`ntn_` 開頭 |
+| `SLACK_BOT_TOKEN` | Slack app → OAuth & Permissions → Bot User OAuth Token，`xoxb-` 開頭 |
+| `SLACK_SIGNING_SECRET` | Slack app → Basic Information → App Credentials → Signing Secret |
+| `SLACK_DM_CHANNEL` | 你自己的 Slack member ID（`U` 開頭；頭像 → View full profile → ⋯ → Copy member ID） |
+| `GITHUB_TOKEN` | GitHub fine-grained PAT，對這個 repo 要 **Contents: Read and write**（publish 要 commit 回來） |
+
+其餘變數都不用管：`APPROVAL_HMAC_SECRET` 與 `TRIGGER_TOKEN` 由 `render.yaml` 自動產生，
+`PUBLIC_BASE_URL` 自動帶入 Render 網址，七個 `NOTION_DB_*` 與其他選項都有預設值
+（完整清單見 `.env.example`）。
+
 ### 1. Notion integration（必做，否則什麼都讀不到）
 
-1. 到 <https://www.notion.so/my-integrations> 建一個 internal integration，複製 `ntn_` 開頭的 token
+1. 到 <https://www.notion.so/my-integrations> 建 **Internal Integration**
+   （不要選 Public — OAuth token 會過期需要 refresh），複製 `ntn_` 開頭的 token
 2. 開 [Resume Master](https://app.notion.com/p/3b525b0d3537813ebc87e48ed8f823bc) 頁面
    → 右上 `⋯` → **Connections** → 加入該 integration
 
-> 權限會往下繼承給七個 database。**不做第 2 步的話，REST API 會回 404**，即使 token 正確。
+> 權限會往下繼承給七個 database。**不做第 2 步的話 REST API 一律回 404**，即使 token 完全正確。
 > （MCP 有權限但 REST 沒有 — 是兩套認證。）
+
+驗證這一步：`python scripts/check_notion.py` — 會分別檢查 token 有效性、頁面連線、
+七個 database、以及有幾筆 row 真的會進履歷。
 
 ### 2. Slack app
 
-- Bot scopes：`chat:write`、`commands`、`im:write`（只呼叫 `chat.postMessage`；PDF 掛在 Notion 與下載連結，不上傳到 Slack）
-- Slash command `/resume` → `https://<render-url>/slack/commands`
-- Interactivity Request URL → `https://<render-url>/slack/interactions`
+先部署 Render 拿到網址再做這步：**步驟 4 按 Save 時 Slack 會即時驗證那個 URL**。
+
+| 位置 | 設定 |
+| --- | --- |
+| Create New App | From scratch，名稱 `Resume Pipeline` |
+| OAuth & Permissions → Bot Token Scopes | `chat:write`、`commands`、`im:write` |
+| Slash Commands → Create New Command | `/resume` → `https://<render-url>/slack/commands` |
+| Interactivity & Shortcuts | 打開開關，Request URL `https://<render-url>/slack/interactions` |
+| Install App | Install to Workspace → 複製 Bot User OAuth Token |
+
+三個子命令（`update` / `status` / `latest`）共用同一個 URL，不用分別註冊。
+只呼叫 `chat.postMessage`，所以不需要 `files:write` — PDF 掛在 Notion 與下載連結。
 
 ### 3. Render
 
 Dashboard → New → **Blueprint** → 指向這個 repo（`render.yaml` 會建 web + cron 兩個 service）。
 
-在 dashboard 填這些 secret：
+到 web service 的 **Environment** 填上表那六個值。存檔後會自動重新部署。
 
-```
-ANTHROPIC_API_KEY      NOTION_TOKEN         SLACK_BOT_TOKEN
-SLACK_SIGNING_SECRET   SLACK_DM_CHANNEL     GITHUB_TOKEN
-```
-
-`APPROVAL_HMAC_SECRET`、`TRIGGER_TOKEN`、`PUBLIC_BASE_URL` 由 `render.yaml` 自動產生或帶入。
-`GITHUB_TOKEN` 需要對這個 repo 的 **Contents: Read and write**（publish 要 commit 回來）。
+驗證：`curl https://<render-url>/healthz` — `missing_credentials` 應該是空的、
+`publish_ready` 應該是 `true`。
 
 > **Plan 必須是 Starter，不能用 Free。** Chromium + Tectonic 尖峰約 1GB RAM，Free 的 512MB 會 OOM；
 > 而且 Free 會 spin down，週一的 cron 觸發會撞上冷啟動而逾時。

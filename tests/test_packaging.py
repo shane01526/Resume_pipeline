@@ -52,6 +52,55 @@ def test_dockerfile_installs_from_requirements() -> None:
     assert copy_index < install_index, "the package is installed before its source is copied"
 
 
+def test_every_setting_is_documented() -> None:
+    """Every env var the code reads must appear in .env.example.
+
+    Otherwise a field added to Settings is invisible to whoever deploys this — it silently
+    takes its default, and the failure shows up as wrong behaviour rather than a missing
+    variable. .env.example is the canonical list; render.yaml only carries what the
+    deployment overrides.
+    """
+    import re
+
+    from pipeline.config import Settings
+
+    documented = set(
+        re.findall(
+            r"^#?\s*([A-Z][A-Z0-9_]+)=",
+            (REPO_ROOT / ".env.example").read_text(encoding="utf-8"),
+            re.M,
+        )
+    )
+    # repo_root is a test seam, set by constructing Settings directly, never via the env.
+    expected = {name.upper() for name in Settings.model_fields} - {"REPO_ROOT"}
+
+    assert expected <= documented, (
+        f"config fields missing from .env.example: {sorted(expected - documented)}"
+    )
+
+
+def test_render_yaml_secrets_are_not_committed() -> None:
+    """Secrets in render.yaml must be `sync: false` or `generateValue`, never a literal.
+
+    A value committed here ends up in a public repo.
+    """
+    import re
+
+    render_yaml = (REPO_ROOT / "render.yaml").read_text(encoding="utf-8")
+    secret_names = ("TOKEN", "SECRET", "API_KEY")
+
+    for match in re.finditer(
+        r"- key: ([A-Z][A-Z0-9_]+)\n(.*?)(?=\n      - key:|\Z)", render_yaml, re.S
+    ):
+        name, body = match.group(1), match.group(2)
+        if not any(marker in name for marker in secret_names):
+            continue
+        assert "sync: false" in body or "generateValue" in body or "fromService" in body, (
+            f"{name} in render.yaml is neither `sync: false`, generated, nor from another "
+            "service — check it isn't a committed literal"
+        )
+
+
 def test_every_declared_package_is_importable() -> None:
     """A dependency that can't be imported under its real module name is misconfigured."""
     module_names = {

@@ -86,7 +86,10 @@ WORKDIR /app
 # pyproject.toml and fails with "package directory 'pipeline' does not exist" when the
 # source isn't there yet. requirements.txt carries the same pins and is checked against
 # pyproject.toml by tests/test_packaging.py, so the two cannot drift.
-COPY requirements.txt ./
+# pyproject.toml is copied alongside so the editable install below can read it; it is
+# metadata only, so touching it (rather than a .py file) is the only thing that busts this
+# layer.
+COPY requirements.txt pyproject.toml ./
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Chromium plus the system libraries it needs. `--with-deps` resolves those from the
@@ -104,10 +107,8 @@ COPY docker/ ./docker/
 # from any working directory. --no-deps because the dependencies are already resolved above.
 RUN pip install --no-deps -e .
 
-# state/ and output/ are populated by `git clone` at runtime (see publish.py): the repo
-# IS the database, so the container pulls the current state on start rather than shipping
-# a stale copy in the image.
-RUN mkdir -p state/runs output/en output/zh sources
+RUN mkdir -p state/runs output/en output/zh sources \
+    && chmod +x docker/entrypoint.sh
 
 # Non-root. Chromium is the reason this matters — a browser running as root in a
 # container is a needless escalation path, and Playwright warns about it.
@@ -116,6 +117,12 @@ RUN useradd --create-home --shell /bin/bash app \
 USER app
 
 EXPOSE 8000
+
+# The entrypoint makes /app a git checkout before anything starts. git IS the database
+# here (see pipeline/state.py), and the image ships code but not the repository — without
+# this, `git add` in publish.py fails on a directory with no .git, right after a run has
+# been rendered and approved.
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
 
 # Render sets PORT; the default keeps `docker run -p 8000:8000` working locally.
 CMD ["sh", "-c", "uvicorn web.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
