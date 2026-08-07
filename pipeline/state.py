@@ -99,6 +99,25 @@ def new_run_id(trigger: Trigger, *, now: datetime | None = None) -> str:
     return f"{now:%Y%m%dT%H%M%SZ}-{trigger.value.lower().replace('-', '')}"
 
 
+def _unique_run_id(runs_dir: Path, trigger: Trigger) -> str:
+    """A run id that is not already taken.
+
+    Second resolution is enough for a weekly schedule, but the cron trigger and a Slack
+    `/resume update` can land in the same second — and reusing an id would mean the second
+    run overwrites the first's artifacts and its audit record. A suffix is cheaper than
+    switching to a format that sorts less readably.
+    """
+    base = new_run_id(trigger)
+    if not (runs_dir / base).exists():
+        return base
+    for suffix in range(2, 100):
+        candidate = f"{base}-{suffix}"
+        if not (runs_dir / candidate).exists():
+            return candidate
+    # 99 runs in one second is not a collision, it's a runaway loop.
+    raise RuntimeError(f"could not allocate a run id from {base}")
+
+
 class RunStore:
     """File-backed run storage under `state/`."""
 
@@ -118,7 +137,8 @@ class RunStore:
     # --- run lifecycle -----------------------------------------------------
     def create(self, trigger: Trigger) -> Run:
         now = datetime.now(UTC)
-        run = Run(id=new_run_id(trigger, now=now), trigger=trigger, created_at=now, updated_at=now)
+        run_id = _unique_run_id(self._settings.runs_dir, trigger)
+        run = Run(id=run_id, trigger=trigger, created_at=now, updated_at=now)
         self.artifacts_dir(run.id).mkdir(parents=True, exist_ok=True)
         self.pages_dir(run.id).mkdir(parents=True, exist_ok=True)
         self.save(run)

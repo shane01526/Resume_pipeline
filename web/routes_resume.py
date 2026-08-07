@@ -36,13 +36,15 @@ FORMATS = {
 LANGS = {"en", "zh"}
 
 
-@router.get("/{lang}.{fmt:path}")
-async def download(lang: str, fmt: str) -> FileResponse:
-    """Serve the current approved artifact.
+@router.get("/{filename:path}")
+async def download(filename: str) -> FileResponse:
+    """Serve the current approved artifact, e.g. `en.pdf` or `zh.latex.pdf`.
 
-    `fmt` uses a path converter because "latex.pdf" contains a dot, which the default
-    converter would split.
+    The whole name is captured and split here rather than matched as `{lang}.{fmt}`.
+    That pattern is greedy on the first segment, so `zh.latex.pdf` bound `lang="zh.latex"`
+    and 404'd — the two-dot format is the reason this endpoint needs manual parsing.
     """
+    lang, _, fmt = filename.partition(".")
     if lang not in LANGS:
         raise HTTPException(404, f"unknown language {lang!r}; expected one of {sorted(LANGS)}")
     if fmt not in FORMATS:
