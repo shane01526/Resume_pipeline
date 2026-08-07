@@ -62,12 +62,19 @@ async def _execute(run: Run, store: RunStore, settings: Settings) -> None:
     # Best-effort: a malformed source file must not block a resume rebuild from rows you
     # have already approved.
     try:
-        from pipeline.ingest import ingest_sources
+        from pipeline.ingest import ingest_sources, mark_processed
         from pipeline.reconcile import reconcile_candidates
 
         if changed := ingest_sources(store, settings):
             log.info("ingest found %d new or changed source file(s)", len(changed))
-            await reconcile_candidates(changed, settings)
+            outcome = await reconcile_candidates(changed, settings)
+            # Marked only after reconcile returns, so a crash mid-extraction leaves the
+            # file pending for the next run rather than silently skipped forever.
+            # Sources whose extraction failed are excluded, for the same reason.
+            succeeded = [s for s in changed if s.name not in outcome.skipped]
+            mark_processed(succeeded, store, settings)
+            if outcome.created or outcome.commented:
+                await _notify_review_queue(outcome, settings)
         else:
             log.info("no new source files")
     except Exception as exc:  # noqa: BLE001
@@ -201,4 +208,38 @@ async def _notify_failure(run: Run, settings: Settings) -> None:
     await post_message(
         settings,
         f"⚠️ 履歷更新失敗 `{run.id}`\n```{run.error}```",
+    )
+
+
+async def _notify_review_queue(outcome: object, settings: Settings) -> None:
+    """Tell you that new candidates are waiting in Notion.
+
+    Separate from the approval notification because it needs a different action from you:
+    these rows will NOT appear in this run's resume — they are `Pending Review` with
+    `Include in Resume` unchecked, and only reach a resume once you approve them in Notion.
+    Folding this into the approval message would blur that distinction.
+    """
+    from web.slack import post_message
+
+    created = getattr(outcome, "created", [])
+    commented = getattr(outcome, "commented", [])
+
+    parts = []
+    if created:
+        listed = "\n".join(f"• {item}" for item in created[:8])
+        more = f"\n_…另有 {len(created) - 8} 筆_" if len(created) > 8 else ""
+        parts.append(f"*新增待審項目*（{len(created)} 筆）\n{listed}{more}")
+    if commented:
+        parts.append(
+            f"*已核准項目的建議*（{len(commented)} 筆）\n"
+            + "\n".join(f"• {label}" for label in commented[:8])
+            + "\n_這些只是 Notion 留言，你已核准的內容沒有被改動。_"
+        )
+
+    await post_message(
+        settings,
+        "📥 從 sources/ 抽取到新素材\n\n"
+        + "\n\n".join(parts)
+        + f"\n\n到 Notion 確認後勾選 `Include in Resume` 並改為 `Approved`，"
+        f"下次執行才會進入履歷。\n{settings.notion_master_page_id}",
     )

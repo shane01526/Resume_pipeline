@@ -68,6 +68,13 @@ class Settings(BaseSettings):
     pdftoppm_dpi: int = 110
     tectonic_bin: str = "tectonic"
 
+    # --- Paths -------------------------------------------------------------
+    # A real field, not a hardcoded constant, so a test can point the whole pipeline at a
+    # temp directory: `Settings(repo_root=tmp_path)`. Every path below derives from it.
+    # This was learned by writing a test that monkeypatched the property, missed because
+    # get_settings() is cached, and wrote into the production sources/ directory.
+    repo_root: Path = REPO_ROOT
+
     @field_validator("public_base_url")
     @classmethod
     def _strip_trailing_slash(cls, v: str) -> str:
@@ -83,34 +90,30 @@ class Settings(BaseSettings):
 
     # --- Derived paths -----------------------------------------------------
     @property
-    def repo_root(self) -> Path:
-        return REPO_ROOT
-
-    @property
     def sources_dir(self) -> Path:
-        return REPO_ROOT / "sources"
+        return self.repo_root / "sources"
 
     @property
     def output_dir(self) -> Path:
-        return REPO_ROOT / "output"
+        return self.repo_root / "output"
 
     @property
     def state_dir(self) -> Path:
-        return REPO_ROOT / "state"
+        return self.repo_root / "state"
 
     @property
     def runs_dir(self) -> Path:
-        return REPO_ROOT / "state" / "runs"
+        return self.repo_root / "state" / "runs"
 
     @property
     def approved_snapshot(self) -> Path:
         """Last approved resume.json — the diff baseline."""
-        return REPO_ROOT / "state" / "approved.json"
+        return self.repo_root / "state" / "approved.json"
 
     @property
     def sources_index(self) -> Path:
         """SHA256 → processed record, so ingest only handles new or changed files."""
-        return REPO_ROOT / "state" / "sources.json"
+        return self.repo_root / "state" / "sources.json"
 
     def git_remote_url(self) -> str:
         """HTTPS remote with the token embedded, for push from a container."""
