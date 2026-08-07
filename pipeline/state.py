@@ -21,6 +21,7 @@ from typing import Any, Self
 from pydantic import BaseModel, ConfigDict, Field
 
 from pipeline.config import Settings
+from pipeline.storage import Storage, build_storage
 
 
 class RunStatus(StrEnum):
@@ -119,12 +120,25 @@ def _unique_run_id(runs_dir: Path, trigger: Trigger) -> str:
 
 
 class RunStore:
-    """File-backed run storage under `state/`."""
+    """Run state, durable via `Storage`; large artifacts staged on local disk.
 
-    def __init__(self, settings: Settings) -> None:
+    The split matters on Cloud Run, where the disk is ephemeral and consecutive requests
+    can land on different instances:
+
+    - **Durable** (through `Storage`): run records, diffs, the approved snapshot, the
+      sources index. Small JSON, read by whichever instance serves the next request.
+    - **Scratch** (local disk): rendered PDFs and page images during a run. They only need
+      to outlive the render, and `publish.py` promotes them to `output/` on approval.
+
+    With the local backend both live under the same tree, which is why `state/` is a
+    committed directory there.
+    """
+
+    def __init__(self, settings: Settings, storage: Storage | None = None) -> None:
         self._settings = settings
+        self._storage = storage if storage is not None else build_storage(settings)
 
-    # --- paths -------------------------------------------------------------
+    # --- scratch paths (local disk, per-instance) ---------------------------
     def run_dir(self, run_id: str) -> Path:
         return self._settings.runs_dir / run_id
 
@@ -133,6 +147,13 @@ class RunStore:
 
     def pages_dir(self, run_id: str) -> Path:
         return self.run_dir(run_id) / "pages"
+
+    # --- durable keys ------------------------------------------------------
+    def _run_key(self, run_id: str) -> str:
+        return f"state/runs/{run_id}/run.json"
+
+    def _diff_key(self, run_id: str) -> str:
+        return f"state/runs/{run_id}/diff.json"
 
     # --- run lifecycle -----------------------------------------------------
     def create(self, trigger: Trigger) -> Run:
@@ -146,27 +167,33 @@ class RunStore:
 
     def save(self, run: Run) -> Run:
         run.touch()
-        path = self.run_dir(run.id) / "run.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        _write_json_atomic(path, run.model_dump(mode="json"))
+        self._storage.write_text(
+            self._run_key(run.id),
+            _to_json(run.model_dump(mode="json")),
+            f"Run {run.id}: {run.status.value}",
+        )
         return run
 
     def load(self, run_id: str) -> Run | None:
-        path = self.run_dir(run_id) / "run.json"
-        if not path.is_file():
-            return None
-        return Run.model_validate_json(path.read_text(encoding="utf-8"))
+        raw = self._storage.read_text(self._run_key(run_id))
+        return Run.model_validate_json(raw) if raw else None
+
+    def save_diff(self, run_id: str, diff: dict[str, Any]) -> None:
+        self._storage.write_text(self._diff_key(run_id), _to_json(diff), f"Run {run_id}: diff")
+
+    def load_diff(self, run_id: str) -> dict[str, Any] | None:
+        raw = self._storage.read_text(self._diff_key(run_id))
+        return json.loads(raw) if raw else None
 
     def list_runs(self, *, limit: int = 50) -> list[Run]:
-        runs_dir = self._settings.runs_dir
-        if not runs_dir.is_dir():
-            return []
+        # Run ids are timestamp-prefixed, so reverse-sorted names are newest first.
+        entries = sorted(self._storage.list_prefix("state/runs"), reverse=True)
         runs = []
-        # Directory names are timestamp-prefixed, so reverse-sorted names are newest first.
-        for entry in sorted(runs_dir.iterdir(), reverse=True):
-            if not entry.is_dir():
+        for entry in entries:
+            run_id = entry.rstrip("/").rsplit("/", 1)[-1]
+            if run_id in (".gitkeep", "runs"):
                 continue
-            if run := self.load(entry.name):
+            if run := self.load(run_id):
                 runs.append(run)
             if len(runs) >= limit:
                 break
@@ -186,7 +213,7 @@ class RunStore:
         return expired
 
     def discard(self, run_id: str) -> None:
-        """Delete a run's artifacts, keeping `run.json` as the audit record.
+        """Drop a run's artifacts, keeping its record as the audit trail.
 
         Rejected and expired runs shouldn't leave rendered PDFs behind — they'd bloat the
         repo and could be mistaken for published output.
@@ -194,44 +221,41 @@ class RunStore:
         for directory in (self.artifacts_dir(run_id), self.pages_dir(run_id)):
             if directory.is_dir():
                 shutil.rmtree(directory)
+        # Durable copies too, where a previous version of this run committed them.
+        self._storage.delete_prefix(
+            f"state/runs/{run_id}/artifacts", f"Run {run_id}: discard artifacts"
+        )
+        self._storage.delete_prefix(
+            f"state/runs/{run_id}/pages", f"Run {run_id}: discard page images"
+        )
 
     # --- diff baseline -----------------------------------------------------
     def load_approved_snapshot(self) -> dict[str, Any] | None:
         """Last approved resume.json. `None` on the very first run."""
-        path = self._settings.approved_snapshot
-        if not path.is_file():
-            return None
-        return json.loads(path.read_text(encoding="utf-8"))
+        raw = self._storage.read_text("state/approved.json")
+        return json.loads(raw) if raw else None
 
-    def save_approved_snapshot(self, resume: dict[str, Any]) -> Path:
-        path = self._settings.approved_snapshot
-        path.parent.mkdir(parents=True, exist_ok=True)
-        _write_json_atomic(path, resume)
-        return path
+    def save_approved_snapshot(self, resume: dict[str, Any]) -> None:
+        self._storage.write_text(
+            "state/approved.json", _to_json(resume), "Update the approved resume snapshot"
+        )
 
     # --- ingest bookkeeping ------------------------------------------------
     def load_sources_index(self) -> dict[str, str]:
         """Map of source path → SHA256 of the version already extracted."""
-        path = self._settings.sources_index
-        if not path.is_file():
-            return {}
-        return json.loads(path.read_text(encoding="utf-8"))
+        raw = self._storage.read_text("state/sources.json")
+        return json.loads(raw) if raw else {}
 
-    def save_sources_index(self, index: dict[str, str]) -> Path:
-        path = self._settings.sources_index
-        path.parent.mkdir(parents=True, exist_ok=True)
-        _write_json_atomic(path, index)
-        return path
+    def save_sources_index(self, index: dict[str, str]) -> None:
+        self._storage.write_text(
+            "state/sources.json", _to_json(index), "Record processed source files"
+        )
 
 
-def _write_json_atomic(path: Path, payload: Any) -> None:
-    """Write via a temp file + replace, so a crash can't leave truncated JSON behind.
+def _to_json(payload: Any) -> str:
+    """Canonical JSON for storage.
 
-    `sort_keys` keeps git diffs readable: a re-serialized file with unchanged content
-    produces no diff.
+    `sort_keys` keeps git diffs readable: re-serializing unchanged content produces no
+    diff, which matters because every write here is a commit.
     """
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
-    tmp.replace(path)
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"

@@ -79,26 +79,52 @@ def test_every_setting_is_documented() -> None:
     )
 
 
-def test_render_yaml_secrets_are_not_committed() -> None:
-    """Secrets in render.yaml must be `sync: false` or `generateValue`, never a literal.
+def test_no_secret_values_are_committed() -> None:
+    """No deployment config may carry a literal credential.
 
-    A value committed here ends up in a public repo.
+    Everything in this repo is public, so a token pasted into a config file is a leak. The
+    Cloud Run script reads from Secret Manager and the Render blueprint uses `sync: false`;
+    this checks neither regressed into an inline value.
     """
     import re
 
-    render_yaml = (REPO_ROOT / "render.yaml").read_text(encoding="utf-8")
-    secret_names = ("TOKEN", "SECRET", "API_KEY")
+    # Patterns that identify a real credential rather than a placeholder.
+    real_secret = re.compile(
+        r"(?:ntn_[A-Za-z0-9]{20,}"  # Notion integration token
+        r"|xoxb-[0-9]{5,}-[0-9]{5,}"  # Slack bot token
+        r"|github_pat_[A-Za-z0-9_]{20,}"  # GitHub fine-grained PAT
+        r"|sk-ant-[A-Za-z0-9-]{20,})"  # Anthropic API key
+    )
 
-    for match in re.finditer(
-        r"- key: ([A-Z][A-Z0-9_]+)\n(.*?)(?=\n      - key:|\Z)", render_yaml, re.S
+    for path in (
+        REPO_ROOT / "docs" / "render.yaml",
+        REPO_ROOT / "scripts" / "deploy_cloudrun.sh",
+        REPO_ROOT / ".env.example",
+        REPO_ROOT / "README.md",
+        *(REPO_ROOT / ".github" / "workflows").glob("*.yml"),
     ):
-        name, body = match.group(1), match.group(2)
-        if not any(marker in name for marker in secret_names):
+        if not path.is_file():
             continue
-        assert "sync: false" in body or "generateValue" in body or "fromService" in body, (
-            f"{name} in render.yaml is neither `sync: false`, generated, nor from another "
-            "service — check it isn't a committed literal"
-        )
+        content = path.read_text(encoding="utf-8")
+        found = real_secret.findall(content)
+        assert not found, f"{path.name} contains what looks like a real credential: {found}"
+
+
+def test_cloudrun_script_uses_secret_manager() -> None:
+    """Cloud Run env vars are readable by anyone with viewer access to the service.
+
+    These credentials grant push access to a repo and posting rights in Slack, so they must
+    come from Secret Manager (`--set-secrets`), never `--set-env-vars`.
+    """
+    script = (REPO_ROOT / "scripts" / "deploy_cloudrun.sh").read_text(encoding="utf-8")
+    assert "--set-secrets" in script
+
+    for name in ("NOTION_TOKEN", "GITHUB_TOKEN", "SLACK_BOT_TOKEN", "APPROVAL_HMAC_SECRET"):
+        assert name in script, f"{name} is not wired into the Cloud Run deploy"
+
+    # STORAGE_BACKEND=github is mandatory there: the disk is ephemeral and consecutive
+    # requests can land on different instances.
+    assert "STORAGE_BACKEND=github" in script
 
 
 def test_every_declared_package_is_importable() -> None:

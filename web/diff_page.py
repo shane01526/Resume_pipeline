@@ -14,7 +14,7 @@ import html
 import json
 
 from pipeline.config import Settings
-from pipeline.diff import ChangeKind, ItemChange, ResumeDiff, read_diff
+from pipeline.diff import ChangeKind, ItemChange, ResumeDiff
 from pipeline.state import Run, RunStatus, RunStore
 
 SECTION_LABELS = {
@@ -45,7 +45,8 @@ ARTIFACT_LABELS = {
 def render_diff_page(run: Run, store: RunStore, settings: Settings) -> str:
     from web.routes_runs import approval_links
 
-    diff = read_diff(store.run_dir(run.id) / "diff.json")
+    raw_diff = store.load_diff(run.id)
+    diff = ResumeDiff.model_validate(raw_diff) if raw_diff else None
     links = approval_links(run, settings)
     decidable = run.status is RunStatus.PENDING_APPROVAL
 

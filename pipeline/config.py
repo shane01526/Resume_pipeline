@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -67,6 +68,13 @@ class Settings(BaseSettings):
     renderers: list[str] = Field(default_factory=lambda: ["html", "latex", "docx"])
     pdftoppm_dpi: int = 110
     tectonic_bin: str = "tectonic"
+
+    # --- Storage -----------------------------------------------------------
+    # "local" writes run state to the filesystem; "github" writes through the Contents API.
+    # Cloud Run needs "github": its disk is ephemeral and consecutive requests can land on
+    # different instances, so a run created by one request must be readable by the next.
+    # Render and local development can use "local", where state/ is a committed directory.
+    storage_backend: Literal["local", "github"] = "local"
 
     # --- Paths -------------------------------------------------------------
     # A real field, not a hardcoded constant, so a test can point the whole pipeline at a

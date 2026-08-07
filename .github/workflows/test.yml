@@ -1,0 +1,89 @@
+# Run the test suite, including the parts that need the full toolchain.
+#
+# The container job is the point: tests/test_render_compile.py skips locally on Windows
+# where Tectonic isn't installed, so without this the LaTeX compile is never exercised in
+# CI — and a template error would reach production, which is exactly what happened once.
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    # Skip when only published artifacts changed: publish.py commits those itself, and
+    # re-running the suite for a PDF is noise.
+    paths-ignore:
+      - "output/**"
+      - "state/**"
+      - "**.md"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fast:
+    name: Unit tests and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: |
+          ruff check pipeline web scripts tests
+          ruff format --check pipeline web scripts tests
+
+      - name: Tests
+        # Chromium is needed for the HTML renderer; the LaTeX compile tests skip here and
+        # run in the container job below.
+        run: |
+          playwright install --with-deps chromium
+          pytest -q
+
+  toolchain:
+    name: Full toolchain in the image
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        # Local layer cache, so an unchanged Dockerfile doesn't re-download Chromium and
+        # Tectonic on every push.
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: resume-pipeline:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify the toolchain is present
+        run: |
+          docker run --rm --entrypoint sh resume-pipeline:ci -c '
+            tectonic --version
+            pdftoppm -v 2>&1 | head -1
+            git --version
+            python -c "import pipeline, web; print(\"package importable\")"
+            test "$(fc-list :charset=25AA | wc -l)" -gt 0 || {
+              echo "no font carries U+25AA — bullet markers would render as tofu"; exit 1; }
+          '
+
+      - name: Render all six artifacts under a 512MB limit
+        # The memory limit is itself the assertion: it is what makes a free-tier deployment
+        # viable, so a renderer that suddenly needs more should fail CI, not production.
+        #
+        # pytest is installed at runtime rather than baked into the image — it is a dev
+        # dependency, and shipping it to production would be wrong for the sake of CI.
+        run: |
+          docker run --rm --memory=512m \
+            -v "$PWD/tests:/app/tests:ro" \
+            --entrypoint sh resume-pipeline:ci -c '
+            pip install --quiet pytest pytest-asyncio
+            cd /app && python -m pytest tests/test_render_compile.py tests/test_render_latex.py -q
+          '

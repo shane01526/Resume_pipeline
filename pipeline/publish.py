@@ -79,15 +79,22 @@ async def _publish(run: Run, store: RunStore, settings: Settings, decided_by: st
     if resume_json.is_file():
         store.save_approved_snapshot(json.loads(resume_json.read_text(encoding="utf-8")))
 
-    # --- 2. Commit and push (the point of no return) -----------------------
+    # --- 2. Commit (the point of no return) --------------------------------
     run.status = RunStatus.APPROVED
     run.decided_by = decided_by
     store.save(run)
 
     tag = f"resume-{datetime.now(UTC):%Y%m%d-%H%M}"
-    run.commit_sha = _commit_and_push(run, tag, settings)
+    # Two paths, because the two hosts differ in what they can offer. With a working copy
+    # (Render, local) git gives one atomic commit for all six artifacts plus a tag. On
+    # Cloud Run there is no working copy, so each file is a separate API commit — less
+    # tidy, but the alternative is cloning the repo on every cold start.
+    if settings.storage_backend == "github":
+        run.commit_sha = _publish_via_api(run, published, settings)
+    else:
+        run.commit_sha = _commit_and_push(run, tag, settings)
     store.save(run)
-    log.info("published run %s as %s (%s)", run.id, tag, run.commit_sha[:8])
+    log.info("published run %s as %s (%s)", run.id, tag, (run.commit_sha or "?")[:8])
 
     # --- 3. Best-effort side effects ---------------------------------------
     # Past this point the publish has succeeded. Failures here are logged, not raised.
@@ -124,6 +131,34 @@ def _copy_artifacts(source: Path, output_dir: Path) -> list[Path]:
                 written.append(target)
 
     return written
+
+
+def _publish_via_api(run: Run, published: list[Path], settings: Settings) -> str:
+    """Write the artifacts through the GitHub Contents API, one commit per file.
+
+    Used where there is no working copy. Ordering matters: the JSON snapshots go last, so
+    if a PDF write fails the baseline still describes the previously published state and
+    the next run's diff stays meaningful.
+    """
+    from pipeline.storage import GitHubStorage
+
+    storage = GitHubStorage(settings)
+    try:
+        pdfs = [p for p in published if p.suffix in (".pdf", ".docx")]
+        snapshots = [p for p in published if p.suffix == ".json"]
+
+        last_sha = ""
+        for path in [*pdfs, *snapshots]:
+            key = path.relative_to(settings.repo_root).as_posix()
+            storage.write(key, path.read_bytes(), f"Publish {key} (run {run.id})")
+            last_sha = storage._sha_of(key) or last_sha
+            log.info("published %s", key)
+
+        # A file blob sha, not a commit sha — the Contents API doesn't return the latter
+        # per write. It still identifies what was published, which is what the audit needs.
+        return last_sha
+    finally:
+        storage.close()
 
 
 def _commit_and_push(run: Run, tag: str, settings: Settings) -> str:

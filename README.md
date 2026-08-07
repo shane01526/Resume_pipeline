@@ -110,14 +110,57 @@ https://<render-url>/resume/en.docx    https://<render-url>/resume/zh.docx
 三個子命令（`update` / `status` / `latest`）共用同一個 URL，不用分別註冊。
 只呼叫 `chat.postMessage`，所以不需要 `files:write` — PDF 掛在 Notion 與下載連結。
 
-### 3. Render
+### 3. Google Cloud Run
 
-Dashboard → New → **Blueprint** → 指向這個 repo（`render.yaml` 會建 web + cron 兩個 service）。
+```powershell
+# 一次性：建立 secret（從 .env 讀值，缺的兩個會自動產生）
+bash scripts/deploy_cloudrun.sh --secrets
 
-到 web service 的 **Environment** 填上表那六個值。存檔後會自動重新部署。
+# 之後每次部署
+bash scripts/deploy_cloudrun.sh
+```
 
-驗證：`curl https://<render-url>/healthz` — `missing_credentials` 應該是空的、
-`publish_ready` 應該是 `true`。
+第一次 build 約 10 分鐘（要下載 Chromium 與 Tectonic）。腳本結束會印出網址與後續步驟。
+
+**為什麼是 Cloud Run 而不是 Render 免費方案**：Render Free 閒置 15 分鐘後 spin down，
+週一的定時觸發會撞上冷啟動；而且 web + cron 兩個 service 會超過 750 免費小時。
+Cloud Run scale-to-zero 沒有這個問題，排程則移到 GitHub Actions。
+
+**設定要點**（腳本已處理，列出來供你理解）：
+
+| 設定 | 值 | 原因 |
+| --- | --- | --- |
+| `--memory` | 1Gi | 實測峰值 54MB + 488MB（Tectonic 是大戶）。512Mi 也夠，留餘裕 |
+| `--timeout` | 900s | 渲染六個檔案要數十秒，預設 300s 會被切斷 |
+| `--max-instances` | 1 | 兩個 instance 會搶著寫同一份 repo 狀態 |
+| `STORAGE_BACKEND` | `github` | **必須** — Cloud Run 磁碟是瞬態的，連續請求可能落在不同 instance |
+| secrets | Secret Manager | Cloud Run 的環境變數對有 viewer 權限的人可見，而這些 token 能推 repo、能發 Slack |
+
+### 4. GitHub Actions（定時觸發）
+
+Cloud Run 沒有內建 cron，所以排程用 Actions（完全免費）。
+
+到 repo 的 **Settings → Secrets and variables → Actions** 加兩個 secret：
+
+| Secret | 值 |
+| --- | --- |
+| `SERVICE_URL` | 部署腳本印出的 Cloud Run 網址 |
+| `TRIGGER_TOKEN` | 與 Secret Manager 裡同名的值一致 |
+
+然後 **Actions → Scheduled resume run → Run workflow** 手動跑一次驗證。
+之後每週一台北時間 03:00 會自動觸發。
+
+### 5. 驗證
+
+```
+curl https://<cloud-run-url>/healthz
+```
+
+`missing_credentials` 應該是空的、`publish_ready` 應該是 `true`、
+`tools` 三項（`pdftoppm` / `tectonic` / `git`）應該都是 `true`。
+
+> 想改回 Render（付費 Starter）或自架，`docs/render.yaml` 是保留的 blueprint，
+> 把 `STORAGE_BACKEND` 設回 `local` 即可 —— 那裡有持久磁碟，`state/` 是 committed 目錄。
 
 > **Plan 必須是 Starter，不能用 Free。** Chromium + Tectonic 尖峰約 1GB RAM，Free 的 512MB 會 OOM；
 > 而且 Free 會 spin down，週一的 cron 觸發會撞上冷啟動而逾時。
@@ -171,14 +214,26 @@ Windows 上沒有 poppler，`pages.py` 會退回用 Playwright 截圖，但那�
 
 ## 為什麼用 git 當資料庫
 
-Render 免費 Postgres 30 天後會被刪，web service 磁碟是 ephemeral。
-但這個系統一週寫一次、只有一個使用者，所以 `state/` 直接 commit 進 repo：
+這個系統一週寫一次、只有一個使用者，而免費的託管資料庫大多會被回收
+（Render 免費 Postgres 30 天後刪除）。所以狀態直接放在 repo：
 
 - 零成本、天然稽核歷史
 - **diff 基準（`state/approved.json`）與它產生的檔案在同一個 commit** — 不會出現不一致
-- cron 與 web 是不同容器，靠 `git pull` 讀到同一份狀態
+- 不需要額外服務要維護
 
-真的需要換 Postgres 時，介面都在 `pipeline/state.py` 後面。
+實作有兩個 backend，都在 `pipeline/storage.py` 後面，由 `STORAGE_BACKEND` 切換：
+
+| Backend | 怎麼運作 | 用在哪 |
+| --- | --- | --- |
+| `local` | 直接讀寫檔案系統，`state/` 是 committed 目錄 | 本機開發、測試、有持久磁碟的平台 |
+| `github` | 透過 GitHub Contents API 讀寫，每次寫入就是一個 commit | **Cloud Run 必須用這個** |
+
+Cloud Run 的磁碟是瞬態的，而且連續兩個請求可能落在不同 instance —— 所以「A 請求建立的 run，
+B 請求要讀得到」。`github` backend 解決這件事，代價是每次操作多一次 API 往返
+（一週一次的系統，這不痛）。
+
+`tests/test_storage.py` 對兩個 backend 跑同一組 contract 測試，避免它們漂移；
+其中一個測試直接驗證「沒有共用磁碟時，A 存的 run B 讀得到」。
 
 ---
 

@@ -1,0 +1,93 @@
+# Weekly trigger for the resume pipeline.
+#
+# Replaces the Render cron service: Cloud Run has no built-in scheduler, and GitHub Actions
+# is free for this — one HTTP request a week costs nothing against the free minutes.
+#
+# The job deliberately does no pipeline work itself. It POSTs to the deployed service and
+# exits; the service renders, diffs, and notifies. Two writers to the same repository state
+# would race, and the loser's commit would be rejected.
+#
+# Setup: add these repository secrets (Settings -> Secrets and variables -> Actions):
+#   SERVICE_URL    the Cloud Run URL, e.g. https://resume-pipeline-xxxx.a.run.app
+#   TRIGGER_TOKEN  must match the TRIGGER_TOKEN set on the service
+
+name: Scheduled resume run
+
+on:
+  schedule:
+    # 19:00 Sunday UTC = 03:00 Monday Asia/Taipei, so a run is waiting when the week starts.
+    - cron: "0 19 * * 0"
+  # Manual trigger, for testing without waiting a week.
+  workflow_dispatch:
+
+# Only one run at a time. A queued second trigger would create a second pending run
+# competing for the same approval.
+concurrency:
+  group: resume-scheduled-run
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check the service is reachable
+        id: health
+        env:
+          SERVICE_URL: ${{ secrets.SERVICE_URL }}
+        run: |
+          if [ -z "$SERVICE_URL" ]; then
+            echo "::error::SERVICE_URL secret is not set"
+            exit 1
+          fi
+
+          # Cloud Run scales to zero, so the first request pays a cold start. Warm it up
+          # before the real trigger rather than letting that show up as a timeout.
+          for attempt in 1 2 3; do
+            if curl -fsS --max-time 60 "$SERVICE_URL/healthz" -o /tmp/health.json; then
+              echo "service is up"
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "attempt $attempt failed; retrying in 15s"
+            sleep 15
+          done
+          echo "::error::$SERVICE_URL/healthz did not respond after 3 attempts"
+          exit 1
+
+      - name: Warn if publishing is not configured
+        run: |
+          # Non-fatal: a run still renders and notifies without every credential, and the
+          # health endpoint already reports what is missing.
+          if ! grep -q '"publish_ready": *true' /tmp/health.json; then
+            echo "::warning::publish_ready is false — check the service's credentials"
+            cat /tmp/health.json
+          fi
+
+      - name: Trigger the run
+        env:
+          SERVICE_URL: ${{ secrets.SERVICE_URL }}
+          TRIGGER_TOKEN: ${{ secrets.TRIGGER_TOKEN }}
+        run: |
+          if [ -z "$TRIGGER_TOKEN" ]; then
+            echo "::error::TRIGGER_TOKEN secret is not set; the service will reject this"
+            exit 1
+          fi
+
+          # 202 is expected: the service renders in the background and notifies Slack when
+          # a run is ready for review.
+          status=$(curl -sS -o /tmp/run.json -w '%{http_code}' \
+            --max-time 120 \
+            -X POST "$SERVICE_URL/api/runs?trigger=Scheduled" \
+            -H "X-Trigger-Token: $TRIGGER_TOKEN")
+
+          echo "HTTP $status"
+          cat /tmp/run.json
+
+          if [ "$status" != "202" ]; then
+            echo "::error::expected 202, got $status"
+            exit 1
+          fi
+
+          run_id=$(python -c "import json;print(json.load(open('/tmp/run.json'))['run_id'])")
+          echo "::notice::triggered run $run_id — Slack will notify if anything changed"

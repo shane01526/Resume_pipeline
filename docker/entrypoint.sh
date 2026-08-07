@@ -18,7 +18,14 @@ BRANCH="${GIT_BRANCH:-main}"
 
 log() { printf '%s entrypoint: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
-if [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${GITHUB_REPO:-}" ]; then
+if [ "${STORAGE_BACKEND:-local}" = "github" ]; then
+    # Cloud Run: state is read and written through the GitHub Contents API, so there is no
+    # working copy to maintain. Cloning here would add ~10s to every cold start for a
+    # checkout nothing reads.
+    log "STORAGE_BACKEND=github — skipping the checkout; state goes through the API"
+    git config --global user.name "${GIT_AUTHOR_NAME:-resume-pipeline}" 2>/dev/null || true
+    git config --global user.email "${GIT_AUTHOR_EMAIL:-bot@resume-pipeline.local}" 2>/dev/null || true
+elif [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${GITHUB_REPO:-}" ]; then
     # Not fatal: the diff page, /healthz, and rendering all work without git. Publishing
     # is what breaks, and /healthz already reports that.
     log "GITHUB_TOKEN or GITHUB_REPO unset — skipping checkout; publishing will be unavailable"

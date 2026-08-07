@@ -52,7 +52,7 @@ async def execute_run(run_id: str) -> None:
 
 
 async def _execute(run: Run, store: RunStore, settings: Settings) -> None:
-    from pipeline.diff import compute_diff, write_diff
+    from pipeline.diff import compute_diff
     from pipeline.notion_client import NotionReader
     from pipeline.translate import translate_resume
 
@@ -117,7 +117,9 @@ async def _execute(run: Run, store: RunStore, settings: Settings) -> None:
 
     # --- Stage 7 (rest): page images for the visual comparison --------------
     _rasterize(written, store, run, settings)
-    write_diff(diff, store.run_dir(run.id) / "diff.json")
+    # Through the store, not a path: the diff page may be served by a different instance
+    # than the one that rendered this run.
+    store.save_diff(run.id, diff.model_dump(mode="json"))
 
     run.status = RunStatus.PENDING_APPROVAL
     store.save(run)
