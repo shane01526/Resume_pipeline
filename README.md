@@ -265,6 +265,21 @@ curl https://<網址>/healthz                   # 線上，看 llm.key 那一段
   （多 instance 會搶著寫同一份 git 狀態），所以現在等於整個服務。若日後放寬 max-instances，
   key 就得改放 Secret Manager。
 
+**Bedrock 不支援 structured outputs。** 這個 Bedrock endpoint 會直接回 400：
+
+```
+output_config.format: Extra inputs are not permitted
+tools.0.custom.strict:  Extra inputs are not permitted
+```
+
+（實測 `anthropic.claude-opus-5` / us-east-1，不是查表推論的。）所以 `pipeline/llm.py`
+改用 structured outputs 出現之前的做法：**用一個帶 schema 的 tool + `tool_choice` 強制呼叫**，
+回來的 `tool_use.input` 一樣走 Pydantic 驗證。`output_config.effort` 是可以用的，所以
+effort 不受影響。
+
+改回第一方 API（`LLM_PROVIDER=anthropic`）時會自動換成 structured outputs —— 這是同一個
+`schema_kwargs()` 依 provider 分支，不用改任何 caller。
+
 ---
 
 ## 本機開發
