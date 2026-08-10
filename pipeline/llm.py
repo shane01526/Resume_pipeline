@@ -1,18 +1,29 @@
 """Claude client wrapper, over either Amazon Bedrock or the first-party API.
 
-Two callers: stage 5 (translate) and stage 2 (extract). Both want structured output, so
-`structured()` is the single entry point — it forces a JSON schema and validates the
+Two callers: stage 5 (translate) and stage 2 (extract). Both want a validated object back,
+so `structured()` is the single entry point — it pins a JSON schema and validates the
 result into a Pydantic model, which means a malformed response fails here rather than
 three stages downstream.
 
 **Bedrock is the default provider.** It uses the `AnthropicBedrockMantle` client (the
 Messages-API Bedrock endpoint) rather than the legacy `InvokeModel` path, so the request
-shape here is identical to the first-party API. Two things differ and are handled by
-`Settings.resolved_model()` and the client factory below:
+shape is nearly identical to the first-party API. Three things differ, all handled here
+and in `Settings.resolved_model()`:
 
 - Model IDs carry an `anthropic.` prefix on Bedrock (`anthropic.claude-opus-5`).
 - The API key is a *short-term* credential that expires within 12 hours, so it is read
   through `pipeline/llm_key.py` on every call rather than captured at import.
+- **Structured outputs are not available.** This endpoint rejects both
+  `output_config.format` and `strict: true` on a tool with
+  `400 invalid_request_error: Extra inputs are not permitted` — measured against
+  `anthropic.claude-opus-5` in us-east-1, not assumed. So the schema is enforced the way
+  it was before structured outputs existed: one tool carrying the schema, plus
+  `tool_choice` forcing it. `output_config.effort` alone *is* accepted, so effort still
+  works on both providers.
+
+Both paths end at `schema.model_validate*`, so a provider that quietly drifts from its
+schema fails here either way — the tool path is a weaker guarantee from the API, not a
+weaker guarantee from this module.
 
 The client is built per call, not cached, because the key rotates — a long-lived client
 would keep using the key it was constructed with and start failing after the rotation.
@@ -22,6 +33,7 @@ Client construction is cheap next to a model request.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
@@ -29,6 +41,10 @@ from pipeline.config import Settings
 from pipeline.llm_key import LLMKeyError, require_key
 
 log = logging.getLogger(__name__)
+
+# Name of the schema-carrying tool on the forced-tool path. Descriptive because the model
+# sees it: an opaque name makes the one available tool look like a trap.
+_EMIT_TOOL = "emit_result"
 
 
 class LLMError(RuntimeError):
@@ -62,6 +78,73 @@ def _client(settings: Settings):  # noqa: ANN202 - anthropic types are import-ti
     return anthropic.AsyncAnthropic(api_key=key)
 
 
+def schema_kwargs(schema: type[BaseModel], settings: Settings, *, effort: str) -> dict[str, Any]:
+    """The request keywords that pin the response to `schema` on this provider.
+
+    Split out so the PDF path in `extract.py` builds the same request as the text path
+    below — the two shapes drifted apart once already, and only the text one was tested.
+    """
+    json_schema = _strict_schema(schema)
+
+    if settings.llm_provider == "bedrock":
+        # No output_config.format here — see the module docstring. `effort` is fine.
+        return {
+            "output_config": {"effort": effort},
+            "tools": [
+                {
+                    "name": _EMIT_TOOL,
+                    "description": f"Return the result as a {schema.__name__} object.",
+                    "input_schema": json_schema,
+                }
+            ],
+            "tool_choice": {"type": "tool", "name": _EMIT_TOOL},
+        }
+
+    return {
+        "output_config": {
+            "effort": effort,
+            "format": {"type": "json_schema", "schema": json_schema},
+        }
+    }
+
+
+def parse_response[T: BaseModel](response: object, schema: type[T], what: str) -> T:
+    """Validate a response into `schema`, whichever request shape produced it.
+
+    Accepts both the tool_use block (Bedrock) and the JSON text block (first-party), so
+    switching providers doesn't change the caller.
+    """
+    # A refusal returns HTTP 200 with an empty or partial content array, so checking
+    # stop_reason before reading content is required, not defensive.
+    if getattr(response, "stop_reason", None) == "refusal":
+        details = getattr(response, "stop_details", None)
+        detail = getattr(details, "explanation", None) or "no explanation given"
+        raise LLMError(f"model declined {what}: {detail}")
+
+    content = getattr(response, "content", [])
+    tool_use = next(
+        (block for block in content if getattr(block, "type", None) == "tool_use"), None
+    )
+    if tool_use is not None:
+        try:
+            return schema.model_validate(tool_use.input)
+        except ValidationError as exc:
+            raise LLMError(f"{what}: tool input did not match {schema.__name__}: {exc}") from exc
+
+    text = next((block.text for block in content if getattr(block, "type", None) == "text"), None)
+    if not text:
+        stop = getattr(response, "stop_reason", "?")
+        # Hitting max_tokens mid-object is the common cause and looks nothing like a bug
+        # in the schema, so name it rather than reporting an empty response.
+        hint = " (ran out of max_tokens mid-object)" if stop == "max_tokens" else ""
+        raise LLMError(f"{what}: no tool_use or text block in response (stop_reason={stop}){hint}")
+
+    try:
+        return schema.model_validate_json(text)
+    except ValidationError as exc:
+        raise LLMError(f"{what}: response did not match {schema.__name__}: {exc}") from exc
+
+
 async def structured[T: BaseModel](
     prompt: str,
     schema: type[T],
@@ -71,7 +154,7 @@ async def structured[T: BaseModel](
     max_tokens: int = 16000,
     effort: str = "medium",
 ) -> T:
-    """One structured-output call, validated into `schema`.
+    """One schema-pinned call, validated into `schema`.
 
     Effort defaults to medium: translating resume bullets and pulling facts out of a
     project doc are both bounded tasks, and the higher tiers mostly buy deliberation
@@ -85,31 +168,12 @@ async def structured[T: BaseModel](
             max_tokens=max_tokens,
             system=system or "",
             messages=[{"role": "user", "content": prompt}],
-            output_config={
-                "effort": effort,
-                "format": {
-                    "type": "json_schema",
-                    "schema": _strict_schema(schema),
-                },
-            },
+            **schema_kwargs(schema, settings, effort=effort),
         )
     except Exception as exc:  # noqa: BLE001 - surface any SDK failure as one error type
         raise LLMError(_call_failure_message(model, settings, exc)) from exc
 
-    # A refusal returns HTTP 200 with an empty or partial content array, so checking
-    # stop_reason before reading content is required, not defensive.
-    if response.stop_reason == "refusal":
-        detail = getattr(response.stop_details, "explanation", None) or "no explanation given"
-        raise LLMError(f"model declined the request: {detail}")
-
-    text = next((block.text for block in response.content if block.type == "text"), None)
-    if not text:
-        raise LLMError(f"no text block in response (stop_reason={response.stop_reason})")
-
-    try:
-        return schema.model_validate_json(text)
-    except ValidationError as exc:
-        raise LLMError(f"response did not match {schema.__name__}: {exc}") from exc
+    return parse_response(response, schema, "the request")
 
 
 def _call_failure_message(model: str, settings: Settings, exc: Exception) -> str:

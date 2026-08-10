@@ -36,9 +36,13 @@ class FakeBullets:
 
 @pytest.fixture
 def settings() -> Settings:
-    # No ANTHROPIC_API_KEY in the test environment, so every translation call fails and
-    # the passthrough path is what these tests exercise. That is the point: it proves a
-    # missing key cannot break a run.
+    # Every translation call fails here, so the passthrough path is what these tests
+    # exercise. That is the point: it proves a broken LLM cannot break a run.
+    #
+    # What makes it fail is the no-network guard in conftest, NOT a missing key. This
+    # comment used to claim the key was absent, which was true until one got exported —
+    # then these tests quietly started making real Bedrock calls and two of them failed
+    # because the model translated strings they assert come back in English.
     return get_settings()
 
 

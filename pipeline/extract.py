@@ -159,7 +159,7 @@ async def _extract_text(source: Source, prompt: str, settings: Settings) -> Extr
 
 async def _extract_pdf(source: Source, prompt: str, settings: Settings) -> Extraction:
     """PDF path, which needs a document content block rather than a text prompt."""
-    from pipeline.llm import _strict_schema
+    from pipeline.llm import schema_kwargs
 
     assert source.pdf_bytes is not None
     client = _client(settings)
@@ -171,10 +171,9 @@ async def _extract_pdf(source: Source, prompt: str, settings: Settings) -> Extra
             model=model,
             max_tokens=16000,
             system=SYSTEM,
-            output_config={
-                "effort": "high",
-                "format": {"type": "json_schema", "schema": _strict_schema(Extraction)},
-            },
+            # Shared with the text path, so the two request shapes cannot drift apart —
+            # they did once, and the untested one used a parameter Bedrock rejects.
+            **schema_kwargs(Extraction, settings, effort="high"),
             messages=[
                 {
                     "role": "user",
@@ -198,12 +197,6 @@ async def _extract_pdf(source: Source, prompt: str, settings: Settings) -> Extra
         # Shared handler, so an expired Bedrock key gives the same rotation hint here.
         raise LLMError(f"{source.name}: {_call_failure_message(model, settings, exc)}") from exc
 
-    if response.stop_reason == "refusal":
-        detail = getattr(response.stop_details, "explanation", None) or "no explanation"
-        raise LLMError(f"model declined to read {source.name}: {detail}")
+    from pipeline.llm import parse_response
 
-    text = next((block.text for block in response.content if block.type == "text"), None)
-    if not text:
-        raise LLMError(f"no text block for {source.name} (stop_reason={response.stop_reason})")
-
-    return Extraction.model_validate_json(text)
+    return parse_response(response, Extraction, f"reading {source.name}")
