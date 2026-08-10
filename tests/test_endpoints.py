@@ -78,13 +78,30 @@ def pending_run(settings: Settings) -> str:
 
 
 def test_healthz_reports_capabilities(client: TestClient) -> None:
-    """Render's health check. Missing credentials are reported, not fatal — the diff page
+    """The health check. Missing credentials are reported, not fatal — the diff page
     and download links are useful before Slack is wired up."""
     payload = client.get("/healthz").json()
     assert payload["status"] == "ok"
     assert set(payload["tools"]) == {"pdftoppm", "tectonic", "git"}
     assert payload["publish_ready"] is False
     assert "NOTION_TOKEN" in payload["missing_credentials"]
+
+
+def test_health_is_served_at_both_paths(client: TestClient) -> None:
+    """`/health` exists because Cloud Run's edge intercepts `/healthz` and answers with
+    Google's own HTML 404 — the request never reaches the container, so the documented
+    post-deploy check and the GitHub Actions warm-up both failed against a healthy
+    service. Both paths must return the same payload, or the two would drift.
+    """
+    alias, original = client.get("/health"), client.get("/healthz")
+    assert alias.status_code == original.status_code == 200
+
+    # `llm.key` carries a computed expiry timestamp that differs by microseconds between
+    # two calls, so compare everything else and the llm fields that are not time-derived.
+    stable = lambda payload: {k: v for k, v in payload.items() if k != "llm"}  # noqa: E731
+    assert stable(alias.json()) == stable(original.json())
+    for field in ("provider", "model", "region"):
+        assert alias.json()["llm"][field] == original.json()["llm"][field]
 
 
 def test_index_lists_pending_runs(client: TestClient, pending_run: str) -> None:

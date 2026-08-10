@@ -41,10 +41,14 @@ jobs:
             exit 1
           fi
 
+          # /health, not /healthz: Cloud Run's edge intercepts /healthz and answers with
+          # Google's own HTML 404, so the request never reaches the container and this step
+          # would fail on a perfectly healthy service. The app serves both paths.
+          #
           # Cloud Run scales to zero, so the first request pays a cold start. Warm it up
           # before the real trigger rather than letting that show up as a timeout.
           for attempt in 1 2 3; do
-            if curl -fsS --max-time 60 "$SERVICE_URL/healthz" -o /tmp/health.json; then
+            if curl -fsS --max-time 60 "$SERVICE_URL/health" -o /tmp/health.json; then
               echo "service is up"
               cat /tmp/health.json
               exit 0
@@ -52,7 +56,7 @@ jobs:
             echo "attempt $attempt failed; retrying in 15s"
             sleep 15
           done
-          echo "::error::$SERVICE_URL/healthz did not respond after 3 attempts"
+          echo "::error::$SERVICE_URL/health did not respond after 3 attempts"
           exit 1
 
       - name: Warn if publishing is not configured

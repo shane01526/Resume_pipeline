@@ -172,6 +172,9 @@ GitHub Actions，Secret Manager 不會再顯示第二次）：
 
 確認前置條件都做完（`gcloud auth login` + `gcloud config set project`），然後在 **Git Bash** 裡：
 
+> Windows 的 gcloud 安裝程式**不會**把 `gcloud` 加進 Git Bash 的 PATH，所以 `which gcloud`
+> 會找不到。腳本會自己去四個標準安裝位置找，不用手動設 PATH。
+
 ```bash
 # 一次性：啟用 API、建立 secret（從 .env 讀值；缺的兩個會產生並寫回 .env）
 bash scripts/deploy_cloudrun.sh --secrets
@@ -220,7 +223,7 @@ Cloud Run 沒有內建 cron，所以排程用 Actions（完全免費）。
 ### 5. 驗證
 
 ```
-curl https://<cloud-run-url>/healthz
+curl https://<cloud-run-url>/health
 ```
 
 `missing_credentials` 應該是空的、`publish_ready` 應該是 `true`、
@@ -251,10 +254,10 @@ python scripts/set_bedrock_key.py <新的key>   # 或直接給
 
 ```bash
 python scripts/set_bedrock_key.py --status   # 本機 + 線上
-curl https://<網址>/healthz                   # 線上，看 llm.key 那一段
+curl https://<網址>/health                    # 線上，看 llm.key 那一段
 ```
 
-`/healthz` 會在 key 剩不到 2 小時或已過期時多一個 `warning` 欄位 —— 那是你在 run 失敗前
+`/health` 會在 key 剩不到 2 小時或已過期時多一個 `warning` 欄位 —— 那是你在 run 失敗前
 會先看到的地方。key 本身永遠不會出現在任何回應或 log 裡，只顯示最後四個字元。
 
 其他選項：
@@ -372,7 +375,7 @@ B 請求要讀得到」。`github` backend 解決這件事，代價是每次操�
 | 履歷是空的 / run 失敗說沒內容 | Notion 沒有任何 `Status = Approved` **且** 勾了 `Include in Resume` 的 row |
 | 沒收到 Slack 通知 | 可能真的沒有差異（設計如此）。`/resume status` 可以確認 |
 | `/resume/en.pdf` 回 404 | 還沒核准過任何 run |
-| 少了 `.latex.pdf` | 該環境沒有 Tectonic；`/healthz` 會列出缺哪些工具 |
+| 少了 `.latex.pdf` | 該環境沒有 Tectonic；`/health` 會列出缺哪些工具 |
 | diff 頁沒有版面比對圖 | 該環境沒有 `pdftoppm` |
 | 核准連結說 invalid signature | `APPROVAL_HMAC_SECRET` 換過了，舊連結會失效 |
 
@@ -389,7 +392,11 @@ B 請求要讀得到」。`github` backend 解決這件事，代價是每次操�
 | Actions 的 `Scheduled resume run` 失敗 | `SERVICE_URL` 或 `TRIGGER_TOKEN` 沒設，或值與 Secret Manager 不一致 |
 | `bash: scripts/...: No such file` | 在 PowerShell 跑了。要在 **Git Bash** 裡執行 |
 
-`/healthz` 會回報 renderer、外部工具、以及缺哪些憑證 —— 部署後第一個該看的地方。
+`/health` 會回報 renderer、外部工具、以及缺哪些憑證 —— 部署後第一個該看的地方。
+
+> **在 Cloud Run 上要用 `/health`，不是 `/healthz`。** Cloud Run 的邊緣會攔截
+> `/healthz` 並回 Google 自己的 HTML 404，請求根本進不到 container（連 request log
+> 都沒有）。程式同時註冊兩個路徑，所以本機與 image 裡 `/healthz` 仍然可用。
 
 ---
 
@@ -411,7 +418,7 @@ pipeline/
   publish.py      ⑨ 唯一會動到外部世界的地方
   runner.py       串起 ①–⑧，結束在「等你核准」
 web/
-  app.py          FastAPI + /healthz
+  app.py          FastAPI + /health（與 /healthz）
   routes_runs.py  觸發、diff 頁、核准（HMAC 簽章）
   routes_resume.py固定下載連結
   slack.py        slash command + 按鈕（驗簽 + 3 秒 ack）

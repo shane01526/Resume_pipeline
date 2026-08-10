@@ -186,7 +186,14 @@ else
     info "no BEDROCK_API_KEY in .env — set one after deploy with scripts/set_bedrock_key.py"
 fi
 
-joined_env=$(IFS=,; echo "${env_vars[*]}")
+# `^@^` tells gcloud to split this dict on @ instead of a comma. Required, not tidiness:
+# RENDERERS=html,latex,docx contains commas, so the default comma delimiter parsed `latex`
+# as its own entry and the deploy aborted with
+#   argument --set-env-vars: Bad syntax for dict arg: [latex]
+# @ is safe as a separator because no value here can contain one — the longest is the
+# base64-ish Bedrock key, whose alphabet is [A-Za-z0-9+/=-].
+joined_env="^@^$(IFS=@; echo "${env_vars[*]}")"
+# Secrets keep the default comma: every value is NAME=NAME:latest, which has none.
 joined_secrets=$(IFS=,; echo "${secret_flags[*]}")
 
 # --- deploy -----------------------------------------------------------------
@@ -222,7 +229,7 @@ trigger_token=$(env_value TRIGGER_TOKEN)
 
 printf '\n\033[32mdeployed\033[0m %s\n\n' "$url"
 echo "Next:"
-echo "  1. curl ${url}/healthz"
+echo "  1. curl ${url}/health      (/healthz is intercepted by Cloud Run)"
 echo "     publish_ready should be true, and all three tools true."
 echo
 echo "  2. Slack app -> set both Request URLs:"

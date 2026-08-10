@@ -60,11 +60,19 @@ app = FastAPI(
 
 
 @app.get("/healthz")
+@app.get("/health")
 async def healthz() -> JSONResponse:
     """The platform health check.
 
     Reports degraded capabilities without failing: a missing Slack token shouldn't take
     the service down, but it should be visible. Only a broken config object is fatal.
+
+    Registered at both paths because **Cloud Run's edge swallows `/healthz`**: it answers
+    with Google's own HTML 404 and the request never reaches the container. Verified by
+    elimination — `/` returns 200, every other unknown path returns this app's JSON
+    `{"detail":"Not Found"}`, and `/healthz` inside the same image returns 200. There are
+    no request logs for it either, so nothing arrives. `/health` is the one to curl on
+    Cloud Run; `/healthz` still works locally, in the image, and on other platforms.
     """
     settings = get_settings()
     tools = {name: shutil.which(name) is not None for name in ("pdftoppm", "tectonic", "git")}
