@@ -154,6 +154,80 @@ def test_every_bullet_reaches_the_pdf(
             assert prefix in text, f"missing from PDF: {prefix}"
 
 
+@pytest.mark.skipif(shutil.which("pdftotext") is None, reason="poppler-utils not installed")
+def test_dashes_keep_the_space_before_them(
+    resume_en: Resume, resume_zh: Resume, settings: Settings, tmp_path: Path
+) -> None:
+    """xeCJK classifies — and – as CJK punctuation, and CJK punctuation loses its leading
+    space. The English resume rendered "Cathay Financial Holdings —DDT AI" and
+    "Feb 2026 –Present" while the HTML render of the same data was correctly spaced.
+
+    Nothing at the source level can see this: the .tex file contains the space, and so does
+    the model. It only appears once the page is typeset. Found by rasterizing the compiled
+    PDF from the Docker image and looking at it.
+
+    Only " — " sequences are checked. A numeric range writes the dash tight on purpose
+    ("5–15 second"), so asserting on every dash in the document fails on correct output —
+    which it did on the first run of this test.
+    """
+    for resume, name in ((resume_en, "en"), (resume_zh, "zh")):
+        directory = tmp_path / name
+        directory.mkdir()
+        rendered = " ".join(_pdftotext(compile_to(resume, settings, directory)).split())
+
+        spaced = [
+            field
+            for field in _dash_bearing_fields(resume)
+            if any(f" {dash}" in field for dash in ("—", "–"))
+        ]
+        assert spaced, "fixture has no spaced dash to check — this test would be vacuous"
+
+        for field in spaced:
+            assert " ".join(field.split()) in rendered, (
+                f"{name}: {field!r} was respaced during typesetting — "
+                "check the xeCJKDeclareCharClass line in the template"
+            )
+
+
+def _dash_bearing_fields(resume: Resume) -> list[str]:
+    """Every string the template actually prints that could carry a spaced dash.
+
+    `Project.affiliation` is deliberately absent: the template prints
+    `context or fmt_month(date)`, never affiliation, so asserting on it fails on a correct
+    PDF. Checked against the template rather than assumed from the model.
+    """
+    from pipeline.render.labels import fmt_month, fmt_range
+
+    fields = []
+    for item in resume.experiences:
+        fields += [item.organization, item.role, fmt_range(item.start, item.end, resume.lang)]
+    for project in resume.projects:
+        fields += [project.name, project.context or fmt_month(project.date_, resume.lang)]
+    return [field for field in fields if field]
+
+
+@pytest.mark.skipif(shutil.which("pdftotext") is None, reason="poppler-utils not installed")
+def test_latex_and_html_agree_on_spacing(
+    resume_en: Resume, settings: Settings, tmp_path: Path
+) -> None:
+    """The two engines must render the same data the same way.
+
+    Asserted on a whole field rather than a character class, because that is the property
+    that actually matters: an organization name reads identically in both PDFs. This is the
+    check that would have caught the dash bug without knowing dashes were involved.
+    """
+    from pipeline.render import html as html_renderer
+
+    latex_text = " ".join(_pdftotext(compile_to(resume_en, settings, tmp_path)).split())
+    html_source = html_renderer.render_html(resume_en, settings)
+
+    for item in resume_en.experiences:
+        if "—" not in item.organization and "–" not in item.organization:
+            continue
+        assert item.organization in html_source, f"HTML lost {item.organization!r}"
+        assert item.organization in latex_text, f"LaTeX respaced {item.organization!r}"
+
+
 def _pdftotext(pdf: Path) -> str:
     result = subprocess.run(  # noqa: S603 - fixed binary, no shell
         ["pdftotext", "-layout", str(pdf), "-"],

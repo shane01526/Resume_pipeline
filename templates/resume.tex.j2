@@ -32,6 +32,18 @@
 \newcommand{\arrowright}{{\symbolfont \VAR{arrow_right}}}
 \newcommand{\arrowboth}{{\symbolfont \VAR{arrow_both}}}
 
+\#{ xeCJK classifies the em dash and en dash as CJK punctuation, and CJK punctuation gets
+   CJK spacing -- which means the space BEFORE them is deleted. The English resume came
+   out reading "Cathay Financial Holdings —DDT AI" and "Feb 2026 –Present", while the HTML
+   render of the same data was correctly spaced. Invisible in the .tex source, which has
+   the space, and invisible in the extracted text layer of most viewers.
+
+   HalfLeft keeps the leading space. It is the only class that works for both scripts:
+   HalfRight, Boundary and CJK each fix the English but then eat the space after a Chinese
+   organization name ("國泰金控— DDT AI"). Tested one class per compile -- redeclaring the
+   same character twice in one document is a LaTeX3 error. }
+\xeCJKDeclareCharClass{HalfLeft}{`—,`–}
+
 \#{ Let CJK lines break between any two ideographs (LaTeX otherwise looks for spaces,
    which Chinese does not have) and allow stretch so lines are not overfull. }
 \XeTeXlinebreaklocale "zh"

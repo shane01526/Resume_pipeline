@@ -103,6 +103,13 @@ _TEX_REPLACEMENTS = {
     "}": r"\}",
     "~": r"\textasciitilde{}",
     "^": r"\textasciicircum{}",
+    # TeX turns a straight double quote into a *closing* curly quote, on both sides:
+    # `"Self-Discover-NLI"` typeset as `”Self-Discover-NLI”`. The opening quote points the
+    # wrong way, which looks like a typo in a paper title on a resume. (Proper directional
+    # quotes would need to know which end each one is, and the model writes plain ASCII, so
+    # a straight pair is the honest rendering.) Found by a test asserting bullets reach the
+    # page, which failed on the mismatch.
+    '"': r"\textquotedbl{}",
 }
 
 _TEX_SPECIALS = re.compile("|".join(re.escape(char) for char in _TEX_REPLACEMENTS))

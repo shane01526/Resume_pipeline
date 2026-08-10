@@ -13,10 +13,10 @@ from __future__ import annotations
 import tempfile
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -109,7 +109,16 @@ class Settings(BaseSettings):
 
     # --- Rendering ---------------------------------------------------------
     # Which renderers to run. Dropping one here also drops it from the diff page.
-    renderers: list[str] = Field(default_factory=lambda: ["html", "latex", "docx"])
+    #
+    # `NoDecode` is load-bearing, not a style choice. Without it, pydantic-settings tries
+    # to JSON-decode any complex-typed field *at the source*, before validators run — so
+    # `RENDERERS=html,latex,docx` raised SettingsError("error parsing value for field
+    # renderers") and every Cloud Run container died during startup, since
+    # deploy_cloudrun.sh sets exactly that. The `mode="before"` validator below never got
+    # a chance to run. NoDecode hands the raw string to the validator instead.
+    renderers: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["html", "latex", "docx"]
+    )
     pdftoppm_dpi: int = 110
     tectonic_bin: str = "tectonic"
 
@@ -135,9 +144,44 @@ class Settings(BaseSettings):
     @field_validator("renderers", mode="before")
     @classmethod
     def _split_renderers(cls, v: object) -> object:
-        # Render's dashboard can only supply strings, so accept "html,latex".
-        if isinstance(v, str):
-            return [part.strip() for part in v.split(",") if part.strip()]
+        """Accept "html,latex" — an env var can only ever be a string."""
+        if not isinstance(v, str):
+            return v
+
+        text = v.strip()
+        # A JSON list is the other plausible thing to type here, and splitting it on commas
+        # yields renderer names like '["html"' that silently match nothing — producing a
+        # run with zero artifacts and no error. Accept it rather than mangle it.
+        if text.startswith("["):
+            import json
+
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"RENDERERS looks like JSON but will not parse: {exc}") from exc
+
+        names = [part.strip() for part in text.split(",") if part.strip()]
+        if not names:
+            # `RENDERERS=` (or all-whitespace) would otherwise mean "render nothing", and
+            # the run would report success having produced no resume at all.
+            raise ValueError(
+                "RENDERERS is empty. Leave it unset for all three, or name a subset "
+                "like 'html,docx'."
+            )
+        return names
+
+    @field_validator("renderers")
+    @classmethod
+    def _known_renderers(cls, v: list[str]) -> list[str]:
+        """Reject a name no renderer answers to.
+
+        A typo ("latext", "pdf") is otherwise silent: `"latex" in settings.renderers` is
+        just False, so the artifact goes missing and the diff page shows one fewer format
+        than expected, with nothing in the logs.
+        """
+        known = {"html", "latex", "docx"}
+        if unknown := [name for name in v if name not in known]:
+            raise ValueError(f"unknown renderer(s) {unknown}; valid names are {sorted(known)}")
         return v
 
     # --- Derived paths -----------------------------------------------------

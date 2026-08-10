@@ -11,6 +11,10 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+import pytest
+
+from pipeline.config import Settings
+
 REPO_ROOT = Path(__file__).parent.parent
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 REQUIREMENTS = REPO_ROOT / "requirements.txt"
@@ -150,3 +154,77 @@ def test_every_declared_package_is_importable() -> None:
         module = module_names.get(name)
         assert module, f"no module mapping for {name!r} — add it to this test"
         assert importlib.util.find_spec(module) is not None, f"{name} is not installed"
+
+
+def test_every_env_var_the_deploy_script_sets_is_accepted_by_settings() -> None:
+    """Parse `--set-env-vars` out of the deploy script and feed it to Settings.
+
+    This is the test that was missing. `deploy_cloudrun.sh` sets
+    `RENDERERS=html,latex,docx`, and pydantic-settings JSON-decodes complex-typed fields
+    at the source — before validators run — so Settings() raised SettingsError and every
+    Cloud Run container died during startup. The suite passed: nothing connected the
+    script's literal values to the config that has to accept them.
+
+    Found by running the built image, not by reading the code.
+    """
+    import re
+
+    script = (REPO_ROOT / "scripts" / "deploy_cloudrun.sh").read_text(encoding="utf-8")
+
+    # The env_vars=( ... ) array literal, which is what reaches --set-env-vars.
+    block = re.search(r"env_vars=\((.*?)\n\)", script, re.DOTALL)
+    assert block, "could not find the env_vars array in deploy_cloudrun.sh"
+
+    pairs = re.findall(r'"([A-Z_]+)=([^"]*)"', block.group(1))
+    assert pairs, "no NAME=value pairs found; did the script's format change?"
+
+    env = {name: value for name, value in pairs if "${" not in value}
+    assert "RENDERERS" in env, "expected the script to still set RENDERERS"
+
+    # Through the ENVIRONMENT, not as kwargs. Passing `renderers="html,latex,docx"` as a
+    # keyword argument skips the env source that does the JSON decoding, so it would pass
+    # even with the bug present — verified by reverting the fix and watching it pass.
+    with pytest.MonkeyPatch.context() as patch:
+        for name, value in env.items():
+            patch.setenv(name, value)
+        settings = Settings(_env_file=None)
+
+    assert settings.renderers == ["html", "latex", "docx"]
+    assert settings.storage_backend == "github"
+
+
+def _settings_with_renderers(value: str) -> Settings:
+    """Build Settings with RENDERERS set in the environment.
+
+    Every renderers test goes through here rather than passing a kwarg: pydantic-settings
+    only JSON-decodes values arriving from an env source, so a kwarg-based test cannot see
+    the bug this whole group exists to prevent.
+    """
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("RENDERERS", value)
+        return Settings(_env_file=None)
+
+
+def test_renderers_accepts_a_comma_separated_string() -> None:
+    """The only form a Cloud Run / Render env var can take."""
+    assert _settings_with_renderers("html,docx").renderers == ["html", "docx"]
+    assert _settings_with_renderers("html, latex , docx").renderers == ["html", "latex", "docx"]
+
+
+def test_renderers_accepts_a_json_list_rather_than_mangling_it() -> None:
+    """Splitting `["html","docx"]` on commas yields '["html"' — a name that matches no
+    renderer, so the run produces zero artifacts and reports success."""
+    assert _settings_with_renderers('["html","docx"]').renderers == ["html", "docx"]
+
+
+def test_empty_renderers_is_rejected() -> None:
+    """`RENDERERS=` would otherwise mean "render nothing" and pass silently."""
+    with pytest.raises(ValueError, match="RENDERERS is empty"):
+        _settings_with_renderers("")
+
+
+def test_unknown_renderer_name_is_rejected() -> None:
+    """A typo is invisible otherwise: `"latex" in renderers` is just False, the artifact
+    goes missing, and nothing is logged."""
+    with pytest.raises(ValueError, match="unknown renderer"):
+        _settings_with_renderers("html,latext")
