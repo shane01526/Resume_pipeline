@@ -119,14 +119,36 @@ async def translate_resume(
 
     # --- Education ---
     for index, item in enumerate(resume.education):
-        _apply_title_override(
-            data["education"][index], overrides.get(item.notion_page_id or ""), ("institution",)
-        )
-        if not overrides.get(item.notion_page_id or ""):
+        target = data["education"][index]
+        override = overrides.get(item.notion_page_id or "")
+        if override:
+            # "國立陽明交通大學 | 語言學碩士" — institution and degree in one field, the same
+            # convention Experiences uses, because one Notion property carries both.
+            #
+            # The degree half must land in `degree`, not stay glued to `institution`: the
+            # renderer prints institution and then `fmt_degree()` on its own line, so the
+            # unsplit string rendered as "國立陽明交通大學 | 語言學碩士" followed by
+            # "語言學文學碩士" — the degree twice, once as an English-shaped translation the
+            # override existed specifically to replace. Seen in the real zh PDF.
+            institution, _, degree = override.partition("|")
+            target["institution"] = institution.strip()
+            if degree.strip():
+                target["degree"] = degree.strip()
+                # A ZH degree like 語言學碩士 already contains the field, and fmt_degree
+                # concatenates field + degree for zh — keeping `field` would render
+                # "語言學語言學碩士".
+                target["field"] = None
+            else:
+                queue(item.degree, ["education", index, "degree"])
+                queue(item.field, ["education", index, "field"])
+        else:
             queue(item.institution, ["education", index, "institution"])
-        queue(item.degree, ["education", index, "degree"])
-        queue(item.field, ["education", index, "field"])
+            queue(item.degree, ["education", index, "degree"])
+            queue(item.field, ["education", index, "field"])
         queue(item.coursework, ["education", index, "coursework"])
+        # `programs` is deliberately not translated: no renderer reads it (the same
+        # content reaches the page as bullets, which are translated), and only the English
+        # resume is diffed. Translating it would bill tokens for output nobody sees.
         _handle_bullets(
             data["education"][index], item, bullets_by_page, pending, ["education", index]
         )
@@ -212,11 +234,6 @@ async def translate_resume(
         _assign(data, path, translated)
 
     return Resume.model_validate(data)
-
-
-def _apply_title_override(target: dict, override: str | None, keys: tuple[str, ...]) -> None:
-    if override:
-        target[keys[0]] = override
 
 
 def _handle_bullets(

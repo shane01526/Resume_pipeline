@@ -114,6 +114,69 @@ async def test_experience_override_without_role_keeps_english_role(
     assert target.role == resume_en.experiences[0].role
 
 
+async def test_education_override_splits_institution_and_degree(
+    resume_en: Resume, settings: Settings
+) -> None:
+    """Education uses the same `institution | degree` convention as Experiences.
+
+    It did not, and the degree half stayed glued to `institution`. Since the renderer
+    prints `institution` and then `fmt_degree()` on the next line, the real zh PDF showed
+    "國立陽明交通大學 | 語言學碩士" followed by "語言學文學碩士" — the degree twice, the second
+    time as the English-shaped translation this override exists to replace.
+    """
+    item = resume_en.education[0]
+    assert item.notion_page_id
+    zh = await translate_resume(
+        resume_en,
+        FakeReader({item.notion_page_id: "國立陽明交通大學 | 語言學碩士"}),
+        settings,
+    )
+    target = next(e for e in zh.education if e.notion_page_id == item.notion_page_id)
+
+    assert target.institution == "國立陽明交通大學"
+    assert target.degree == "語言學碩士"
+    # A Chinese degree already names the field; keeping `field` makes fmt_degree render
+    # "語言學語言學碩士", since it concatenates field + degree for zh.
+    assert target.field is None
+
+
+async def test_education_degree_line_is_not_a_repeat_of_the_institution_line(
+    resume_en: Resume, settings: Settings
+) -> None:
+    """The end-to-end property, asserted on what the renderer will actually print."""
+    from pipeline.render.labels import fmt_degree
+
+    item = resume_en.education[0]
+    assert item.notion_page_id
+    zh = await translate_resume(
+        resume_en,
+        FakeReader({item.notion_page_id: "國立陽明交通大學 | 語言學碩士"}),
+        settings,
+    )
+    target = next(e for e in zh.education if e.notion_page_id == item.notion_page_id)
+
+    assert fmt_degree(target, "zh") == "語言學碩士"
+    assert target.degree not in target.institution
+
+
+async def test_education_override_without_a_bar_leaves_the_degree_to_the_llm(
+    resume_en: Resume, settings: Settings
+) -> None:
+    """Only the institution was overridden, so degree and field still need translating —
+    and must not be silently dropped the way the bar case drops `field`."""
+    item = resume_en.education[0]
+    assert item.notion_page_id
+    zh = await translate_resume(
+        resume_en, FakeReader({item.notion_page_id: "國立陽明交通大學"}), settings
+    )
+    target = next(e for e in zh.education if e.notion_page_id == item.notion_page_id)
+
+    assert target.institution == "國立陽明交通大學"
+    # Passthrough: conftest blocks the real call, so these stay English rather than empty.
+    assert target.degree == item.degree
+    assert target.field == item.field
+
+
 async def test_skill_override_splits_name_and_detail(resume_en: Resume, settings: Settings) -> None:
     """Full-width bar separates the two, matching the master page's documented format."""
     skill = next(s for s in resume_en.skills if s.name == "English")
