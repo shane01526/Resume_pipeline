@@ -163,10 +163,12 @@ async def _extract_pdf(source: Source, prompt: str, settings: Settings) -> Extra
 
     assert source.pdf_bytes is not None
     client = _client(settings)
+    # Provider-correct ID: Bedrock needs the `anthropic.` prefix, first-party rejects it.
+    model = settings.resolved_model()
 
     try:
         response = await client.messages.create(
-            model=settings.llm_model,
+            model=model,
             max_tokens=16000,
             system=SYSTEM,
             output_config={
@@ -191,7 +193,10 @@ async def _extract_pdf(source: Source, prompt: str, settings: Settings) -> Extra
             ],
         )
     except Exception as exc:  # noqa: BLE001
-        raise LLMError(f"PDF extraction call failed: {exc}") from exc
+        from pipeline.llm import _call_failure_message
+
+        # Shared handler, so an expired Bedrock key gives the same rotation hint here.
+        raise LLMError(f"{source.name}: {_call_failure_message(model, settings, exc)}") from exc
 
     if response.stop_reason == "refusal":
         detail = getattr(response.stop_details, "explanation", None) or "no explanation"

@@ -61,7 +61,7 @@ app = FastAPI(
 
 @app.get("/healthz")
 async def healthz() -> JSONResponse:
-    """Render's health check.
+    """The platform health check.
 
     Reports degraded capabilities without failing: a missing Slack token shouldn't take
     the service down, but it should be visible. Only a broken config object is fatal.
@@ -73,10 +73,41 @@ async def healthz() -> JSONResponse:
         "renderers": settings.renderers,
         "tools": tools,
         "publish_ready": not settings.missing_for_publish(),
+        "llm": _llm_health(settings),
     }
     if missing := settings.missing_for_publish():
         payload["missing_credentials"] = missing
     return JSONResponse(payload)
+
+
+def _llm_health(settings: Any) -> dict[str, Any]:
+    """LLM provider and key state, without the key itself.
+
+    On the health check because a short-term Bedrock key expires within 12 hours: this is
+    where you notice it is about to lapse, rather than finding out from a failed 3am run.
+    """
+    from pipeline.llm_key import status as key_status
+
+    info: dict[str, Any] = {"provider": settings.llm_provider, "model": settings.resolved_model()}
+
+    if settings.llm_provider != "bedrock":
+        info["key_configured"] = bool(settings.anthropic_api_key.get_secret_value())
+        return info
+
+    info["region"] = settings.aws_region
+    state = key_status(settings)
+    info["key"] = state
+
+    if not state.get("configured"):
+        info["warning"] = (
+            "no Bedrock key loaded — set one with scripts/set_bedrock_key.py, "
+            "or POST /admin/llm-key"
+        )
+    elif state.get("expired"):
+        info["warning"] = "the Bedrock key has expired — rotate it"
+    elif isinstance(remaining := state.get("expires_in_hours"), (int, float)) and remaining < 2:
+        info["warning"] = f"the Bedrock key expires in {remaining}h — rotate it soon"
+    return info
 
 
 @app.get("/")
@@ -109,8 +140,9 @@ async def index() -> JSONResponse:
 
 # Routers are imported after `app` exists so they can reference it, and last so an
 # import error in one surface doesn't hide the health check.
-from web import routes_resume, routes_runs, slack  # noqa: E402
+from web import routes_admin, routes_resume, routes_runs, slack  # noqa: E402
 
 app.include_router(routes_runs.router)
 app.include_router(routes_resume.router)
 app.include_router(slack.router)
+app.include_router(routes_admin.router)

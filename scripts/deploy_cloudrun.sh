@@ -27,6 +27,11 @@ TIMEOUT="${TIMEOUT:-900}"
 MAX_INSTANCES="${MAX_INSTANCES:-1}"
 CONCURRENCY="${CONCURRENCY:-4}"
 
+# BEDROCK_API_KEY is deliberately NOT in this list. It expires within 12 hours, so binding
+# it as a Secret Manager version would mean a new Cloud Run revision on every rotation.
+# It ships as a plain env var for the initial boot and is rotated in place afterwards via
+# `scripts/set_bedrock_key.py` → POST /admin/llm-key. ANTHROPIC_API_KEY stays here for the
+# LLM_PROVIDER=anthropic path, which uses a long-lived key.
 SECRETS=(ANTHROPIC_API_KEY NOTION_TOKEN SLACK_BOT_TOKEN SLACK_SIGNING_SECRET GITHUB_TOKEN APPROVAL_HMAC_SECRET TRIGGER_TOKEN)
 
 die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -127,14 +132,28 @@ done
 # SLACK_DM_CHANNEL is a user ID, not a credential, so it stays a plain env var.
 slack_channel=$(grep -E '^SLACK_DM_CHANNEL=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)
 
+# Seed key for the first boot. Rotations after this go through /admin/llm-key rather than a
+# redeploy — see scripts/set_bedrock_key.py.
+bedrock_key=$(grep -E '^BEDROCK_API_KEY=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)
+[ -n "$bedrock_key" ] || bedrock_key=$(grep -E '^AWS_BEARER_TOKEN_BEDROCK=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)
+
 env_vars=(
     "STORAGE_BACKEND=github"   # REQUIRED here: Cloud Run's disk is ephemeral
     "GITHUB_REPO=shane01526/Resume_pipeline"
     "GIT_BRANCH=main"
     "RENDERERS=html,latex,docx"
     "APPROVAL_TIMEOUT_HOURS=72"
+    "LLM_PROVIDER=bedrock"
+    "AWS_REGION=${AWS_REGION:-us-east-1}"
+    # Outside the repo on purpose: state/ and output/ are committed to a public repo.
+    "BEDROCK_KEY_FILE=/tmp/bedrock_key.json"
 )
 [ -n "$slack_channel" ] && env_vars+=("SLACK_DM_CHANNEL=${slack_channel}")
+if [ -n "$bedrock_key" ] && [ "${bedrock_key#bedrock-api-key-}" != "$bedrock_key" ]; then
+    env_vars+=("BEDROCK_API_KEY=${bedrock_key}")
+else
+    info "no BEDROCK_API_KEY in .env — set one after deploy with scripts/set_bedrock_key.py"
+fi
 
 joined_env=$(IFS=,; echo "${env_vars[*]}")
 joined_secrets=$(IFS=,; echo "${secret_flags[*]}")

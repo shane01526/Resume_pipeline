@@ -1,20 +1,45 @@
-"""Shared fixtures, plus a guard against tests writing into the real repository.
+"""Shared fixtures, plus two guards that keep the suite honest about its environment.
 
-The guard exists because it already happened: a test monkeypatched `Settings.repo_root`,
-the patch silently had no effect (`get_settings()` is cached), and the suite wrote a dozen
-files into `sources/` and overwrote its README. `repo_root` is a real settings field now,
-but a checked-in tripwire is cheaper than remembering.
+The repo-write guard exists because it already happened: a test monkeypatched
+`Settings.repo_root`, the patch silently had no effect (`get_settings()` is cached), and
+the suite wrote a dozen files into `sources/` and overwrote its README. `repo_root` is a
+real settings field now, but a checked-in tripwire is cheaper than remembering.
+
+The `.env` isolation guard is the same class of bug seen from the other side: `Settings`
+reads `.env` by default, so once a developer creates one, "this credential is absent"
+becomes impossible to express in a test. That failure is silent and environment-dependent
+— the suite passes on CI and fails on the machine that just configured a deployment.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from pipeline.config import REPO_ROOT
+from pipeline.config import REPO_ROOT, Settings
 
 # Directories a test must never modify. `state/` and `output/` are the pipeline's durable
 # storage — the diff baseline lives there — and `sources/` is the user's document archive.
 PROTECTED = ("sources", "state", "output")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_settings_from_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stop `Settings()` reading the developer's real `.env` during tests.
+
+    Without this, a test asserting "no GITHUB_TOKEN raises" passes on a clean checkout and
+    fails as soon as someone creates a `.env` with placeholder values — the credential is
+    non-empty, so the guard it is testing never fires. Tests that *want* a credential pass
+    it explicitly.
+    """
+    # pydantic-settings resolves `_env_file` per instantiation, so defaulting it to None
+    # disables the file source without touching the real `.env` on disk.
+    original_init = Settings.__init__
+
+    def _init_without_dotenv(self: Settings, **kwargs: object) -> None:
+        kwargs.setdefault("_env_file", None)  # type: ignore[arg-type]
+        original_init(self, **kwargs)
+
+    monkeypatch.setattr(Settings, "__init__", _init_without_dotenv)
 
 
 @pytest.fixture(autouse=True)

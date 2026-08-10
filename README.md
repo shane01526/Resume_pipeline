@@ -100,7 +100,7 @@ gcloud config list                       # 確認 account 與 project 都對了
 
 | 變數 | 從哪裡拿 | 長相 |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | <https://platform.claude.com> → API keys | `sk-ant-…` |
+| `BEDROCK_API_KEY` | AWS console → Amazon Bedrock → API keys（見下方「換 key」） | `bedrock-api-key-…` |
 | `NOTION_TOKEN` | Notion internal integration（下面第 1 步） | `ntn_…` |
 | `SLACK_BOT_TOKEN` | Slack app → OAuth & Permissions → Bot User OAuth Token | `xoxb-…` |
 | `SLACK_SIGNING_SECRET` | Slack app → Basic Information → App Credentials → Signing Secret | 32 字元 hex |
@@ -219,6 +219,51 @@ curl https://<cloud-run-url>/healthz
 > 想改用 Render 或自架，`docs/render.yaml` 是保留的 blueprint；把 `STORAGE_BACKEND`
 > 設回 `local` 即可 —— 那裡有持久磁碟，`state/` 就是 committed 目錄。
 > 記憶體實測峰值 54MB + 488MB，512MB 方案就夠。
+
+---
+
+## 換 Bedrock API key（會定期需要做）
+
+模型走 **Amazon Bedrock**（`anthropic.claude-opus-5`，us-east-1）。Bedrock 的 short-term
+API key **最多 12 小時就過期**，所以換 key 是常態操作，不是一次性設定。
+
+**一行指令換掉本機與線上的 key：**
+
+```bash
+python scripts/set_bedrock_key.py            # 互動式隱藏輸入（不會留在 shell 歷史）
+python scripts/set_bedrock_key.py <新的key>   # 或直接給
+```
+
+腳本會同時做兩件事：更新本機 `.env` 對應的快取，並 `POST /admin/llm-key` 到線上服務。
+**線上不需要重新部署** —— Cloud Run 改環境變數要建新 revision，要好幾分鐘，而 key 當天就會再過期。
+
+**查現在載入的是哪一把：**
+
+```bash
+python scripts/set_bedrock_key.py --status   # 本機 + 線上
+curl https://<網址>/healthz                   # 線上，看 llm.key 那一段
+```
+
+`/healthz` 會在 key 剩不到 2 小時或已過期時多一個 `warning` 欄位 —— 那是你在 run 失敗前
+會先看到的地方。key 本身永遠不會出現在任何回應或 log 裡，只顯示最後四個字元。
+
+其他選項：
+
+| 情境 | 做法 |
+| --- | --- |
+| 只改本機 | `--local` |
+| 只改線上 | `--remote-only` |
+| 從 stdin 讀（給 CI 用） | `echo $KEY \| python scripts/set_bedrock_key.py -` |
+| 改用第一方 Anthropic API | `.env` 設 `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` |
+
+**兩個設計上的限制**，值得知道：
+
+- key 快取檔（`BEDROCK_KEY_FILE`，預設 `/tmp/bedrock_key.json`）**必須在 repo 外面**。
+  `state/` 與 `output/` 會被 commit 到公開 repo，所以程式碼會直接拒絕 repo 內的路徑，
+  而不是留個警告等你踩到。
+- `/admin/llm-key` 更新的是**收到請求的那個 instance**。部署腳本設 `--max-instances 1`
+  （多 instance 會搶著寫同一份 git 狀態），所以現在等於整個服務。若日後放寬 max-instances，
+  key 就得改放 Secret Manager。
 
 ---
 

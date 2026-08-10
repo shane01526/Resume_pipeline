@@ -22,12 +22,40 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        # So `bedrock_api_key` can be set by either BEDROCK_API_KEY or the SDK's own
+        # AWS_BEARER_TOKEN_BEDROCK name (declared as that field's alias).
+        populate_by_name=True,
     )
 
     # --- LLM ---------------------------------------------------------------
+    # Which surface to call Claude through.
+    #   "anthropic" — first-party API, long-lived sk-ant-... key
+    #   "bedrock"   — Amazon Bedrock via the Mantle (Messages API) endpoint
+    llm_provider: Literal["anthropic", "bedrock"] = "bedrock"
+
+    # First-party key. Unused when llm_provider is "bedrock".
     anthropic_api_key: SecretStr = SecretStr("")
+
+    # Model ID *without* a provider prefix. `resolved_model()` adds Bedrock's
+    # `anthropic.` prefix, so this one value works on either provider.
     llm_model: str = "claude-opus-5"
+
+    # --- Bedrock -----------------------------------------------------------
+    # Short-term Bedrock API key (starts with `ABSK`). These expire — up to 12 hours —
+    # which is why `scripts/set_bedrock_key.py` and the /admin/llm-key endpoint exist.
+    # Read from BEDROCK_API_KEY, or from the AWS_BEARER_TOKEN_BEDROCK name the SDK
+    # itself recognises.
+    bedrock_api_key: SecretStr = Field(default=SecretStr(""), alias="AWS_BEARER_TOKEN_BEDROCK")
+    aws_region: str = "us-east-1"
+
+    # Where the current key is cached so a restarted container doesn't lose it. The web
+    # service holds it in memory too; this file is what survives a redeploy.
+    # Deliberately NOT under state/ — state/ is committed, and a credential must never be.
+    bedrock_key_file: Path = Path("/tmp/bedrock_key.json")
 
     # --- Notion ------------------------------------------------------------
     # The integration token (ntn_...). The Resume Master page must be shared with
@@ -129,6 +157,22 @@ class Settings(BaseSettings):
         if not token:
             return f"https://github.com/{self.github_repo}.git"
         return f"https://x-access-token:{token}@github.com/{self.github_repo}.git"
+
+    # --- LLM helpers -------------------------------------------------------
+    def resolved_model(self) -> str:
+        """The model ID as the configured provider expects it.
+
+        Bedrock model IDs carry an `anthropic.` prefix; the first-party API rejects it.
+        Keeping `llm_model` prefix-free means switching providers is one env var, not a
+        second string to remember to change.
+        """
+        if self.llm_provider == "bedrock":
+            return (
+                self.llm_model
+                if self.llm_model.startswith("anthropic.")
+                else f"anthropic.{self.llm_model}"
+            )
+        return self.llm_model.removeprefix("anthropic.")
 
     def missing_for_publish(self) -> list[str]:
         """Credentials required to actually publish. Checked before a run starts."""
