@@ -73,13 +73,19 @@ class Settings(BaseSettings):
     notion_token: SecretStr = SecretStr("")
     notion_version: str = "2022-06-28"
     notion_master_page_id: str = "3b525b0d-3537-813e-bc87-e48ed8f823bc"
-    notion_db_experiences: str = "bd8fd592-9e98-4fe6-9d7e-0fb71aeeb8f8"
-    notion_db_projects: str = "9b54da5d-c48e-4d9a-a6aa-87083090a6ae"
-    notion_db_education: str = "abe08012-2e03-40c6-b4f6-2357830d73bc"
-    notion_db_skills: str = "98449619-495f-4fa8-98ce-20fc066bfffb"
-    notion_db_publications: str = "721b08ab-0db4-42d7-a500-5e9f1f42e9d5"
-    notion_db_profile: str = "03bae5bc-09f9-4267-a2a8-d9316e5f8512"
-    notion_db_runs: str = "a5f3a01d-a436-42e1-88bc-017bcdd7232c"
+
+    # These are **database** IDs, not data-source (`collection://`) IDs. Notion's create
+    # response returns both, and `/v1/databases/{id}/query` accepts only the former — a
+    # collection ID there returns 404 `object_not_found`, which looks exactly like a
+    # permissions problem and sends you hunting the integration share instead.
+    # Verified: every one of these returns rows.
+    notion_db_experiences: str = "16b31fc42e78450a9e4da4ae059ace67"
+    notion_db_projects: str = "e47f32a6ead94d2a997be12a746b192d"
+    notion_db_education: str = "2a9b9e512a844f2f86605ec86a0eebaa"
+    notion_db_skills: str = "53723269fbbf41e09db6a97accc6c9ff"
+    notion_db_publications: str = "8481129268544760b97339b7605f3fb7"
+    notion_db_profile: str = "05427da04c764d5b885abea89967a29a"
+    notion_db_runs: str = "6009f1883b3345caa2f05a051a0b5c67"
 
     # --- Slack -------------------------------------------------------------
     slack_bot_token: SecretStr = SecretStr("")

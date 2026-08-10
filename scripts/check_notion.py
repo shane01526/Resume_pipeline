@@ -25,8 +25,8 @@ import httpx  # noqa: E402
 
 from pipeline.config import get_settings  # noqa: E402
 
-OK = "✓"
-BAD = "✗"
+OK = "OK"
+BAD = "ERROR:"
 
 
 async def main() -> int:
@@ -61,14 +61,14 @@ async def main() -> int:
         # --- 1. token validity -------------------------------------------------
         response = await client.get("/users/me")
         if response.status_code == 401:
-            print(f"{BAD} 401 — the token is invalid or was revoked.")
+            print(f"{BAD} 401 - the token is invalid or was revoked.")
             return 1
         if response.status_code != 200:
             print(f"{BAD} /users/me returned {response.status_code}: {response.text[:200]}")
             return 1
 
         bot = response.json()
-        print(f"{OK} token valid — integration {bot.get('name', '(unnamed)')!r}")
+        print(f"{OK} token valid - integration {bot.get('name', '(unnamed)')!r}")
 
         # --- 2. page connection ------------------------------------------------
         page_id = settings.notion_master_page_id
@@ -103,8 +103,24 @@ async def main() -> int:
         for name, database_id in databases.items():
             response = await client.post(f"/databases/{database_id}/query", json={"page_size": 100})
             if response.status_code != 200:
-                print(f"  {BAD} {name:14} {response.status_code} — {response.text[:80]}")
+                print(f"  {BAD} {name:14} {response.status_code} - {response.text[:80]}")
                 failures += 1
+                # A 404 here has two very different causes and the API reports both as
+                # object_not_found. Distinguish them: if a plain GET on the same id also
+                # 404s but the id is a valid database when fetched, it is a permissions
+                # problem; if the id simply isn't a database, it is the wrong kind of id.
+                if response.status_code == 404:
+                    probe = await client.get(f"/databases/{database_id}")
+                    if probe.status_code == 200:
+                        print("       ^ the id exists but query was denied - check the share")
+                    else:
+                        print(
+                            "       ^ that id is not a database. Notion returns two ids per "
+                            "database:\n"
+                            "         the database id, and a data-source (collection://) id. "
+                            "Only the\n"
+                            "         former works with /databases/{id}/query."
+                        )
                 continue
 
             rows = response.json().get("results", [])
@@ -123,7 +139,7 @@ async def main() -> int:
 
         print()
         if failures:
-            print(f"{BAD} {failures} database(s) unreachable — check the NOTION_DB_* ids.")
+            print(f"{BAD} {failures} database(s) unreachable - check the NOTION_DB_* ids.")
             return 1
 
         if total_approved == 0:
@@ -134,7 +150,7 @@ async def main() -> int:
             )
             return 1
 
-        print(f"{OK} Notion is ready — {total_approved} row(s) will be included.")
+        print(f"{OK} Notion is ready - {total_approved} row(s) will be included.")
         print("   Next: try  python scripts/local_run.py   to render from real data.")
         return 0
 
