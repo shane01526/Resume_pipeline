@@ -14,7 +14,31 @@ set -euo pipefail
 
 SERVICE="${SERVICE:-resume-pipeline}"
 REGION="${REGION:-asia-east1}"          # Taipei — closest to you and to Notion's edge
-PROJECT="${PROJECT:-$(gcloud config get-value project 2>/dev/null)}"
+
+die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+info() { printf '\033[36m==>\033[0m %s\n' "$*"; }
+
+# Resolve the gcloud binary BEFORE anything calls it. The Windows installer does not put
+# gcloud on Git Bash's PATH, so `command -v gcloud` fails on a machine where gcloud is
+# installed and authenticated — and because PROJECT used to be computed by calling gcloud
+# on this line, the script died with "no GCP project selected" instead of saying gcloud
+# was not found. Wrong diagnosis, and the user goes off re-running `config set project`.
+if command -v gcloud >/dev/null 2>&1; then
+    GCLOUD=gcloud
+else
+    for candidate in \
+        "$LOCALAPPDATA/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd" \
+        "/c/Users/$USERNAME/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd" \
+        "/c/Program Files (x86)/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd" \
+        "/c/Program Files/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd"
+    do
+        [ -f "$candidate" ] && { GCLOUD="$candidate"; break; }
+    done
+    [ -n "${GCLOUD:-}" ] || die "gcloud not found: https://cloud.google.com/sdk/docs/install"
+    info "using gcloud at $GCLOUD"
+fi
+
+PROJECT="${PROJECT:-$("$GCLOUD" config get-value project 2>/dev/null | tr -d '\r')}"
 
 # 512MB is enough: measured peak is 54MB Python + 488MB in children (Tectonic is the
 # heavy one). 1Gi leaves headroom for a longer resume without changing the free-tier maths.
@@ -34,18 +58,24 @@ CONCURRENCY="${CONCURRENCY:-4}"
 # LLM_PROVIDER=anthropic path, which uses a long-lived key.
 SECRETS=(ANTHROPIC_API_KEY NOTION_TOKEN SLACK_BOT_TOKEN SLACK_SIGNING_SECRET GITHUB_TOKEN APPROVAL_HMAC_SECRET TRIGGER_TOKEN)
 
-die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
-info() { printf '\033[36m==>\033[0m %s\n' "$*"; }
+# Read one value out of .env, in one place instead of five copies of the same pipeline.
+#
+# `tr -d '\r'` is belt-and-braces for the CRLF checkout on Windows. Command substitution
+# already strips a trailing \r together with the newline (verified with od, after I had
+# claimed otherwise), so this only matters for a value with an interior carriage return —
+# which no credential has. It stays because a corrupt secret in Secret Manager is invisible:
+# the dashboard shows a value that looks right and Slack just answers invalid_token.
+env_value() {
+    grep -E "^$1=" .env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r' || true
+}
 
 [ -n "$PROJECT" ] || die "no GCP project selected. Run: gcloud config set project YOUR_PROJECT"
-
-command -v gcloud >/dev/null || die "gcloud not found: https://cloud.google.com/sdk/docs/install"
 
 info "project=$PROJECT service=$SERVICE region=$REGION"
 
 # --- one-time API enablement (idempotent) -----------------------------------
 info "enabling required APIs"
-gcloud services enable \
+"$GCLOUD" services enable \
     run.googleapis.com \
     cloudbuild.googleapis.com \
     secretmanager.googleapis.com \
@@ -61,7 +91,7 @@ if [ "${1:-}" = "--secrets" ]; then
     [ -f .env ] || die ".env not found. Copy .env.example and fill it in first."
 
     for name in "${SECRETS[@]}"; do
-        value=$(grep -E "^${name}=" .env | head -1 | cut -d= -f2- || true)
+        value=$(env_value "$name")
         if [ -z "$value" ]; then
             # APPROVAL_HMAC_SECRET and TRIGGER_TOKEN can be generated; the rest cannot.
             case "$name" in
@@ -95,12 +125,12 @@ PY
             esac
         fi
 
-        if gcloud secrets describe "$name" --project "$PROJECT" >/dev/null 2>&1; then
-            printf '%s' "$value" | gcloud secrets versions add "$name" \
+        if "$GCLOUD" secrets describe "$name" --project "$PROJECT" >/dev/null 2>&1; then
+            printf '%s' "$value" | "$GCLOUD" secrets versions add "$name" \
                 --data-file=- --project "$PROJECT" --quiet >/dev/null
             info "  $name: new version"
         else
-            printf '%s' "$value" | gcloud secrets create "$name" \
+            printf '%s' "$value" | "$GCLOUD" secrets create "$name" \
                 --data-file=- --replication-policy=automatic \
                 --project "$PROJECT" --quiet >/dev/null
             info "  $name: created"
@@ -108,12 +138,12 @@ PY
     done
 
     # Cloud Run's runtime service account needs read access to each secret.
-    project_number=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')
+    project_number=$("$GCLOUD" projects describe "$PROJECT" --format='value(projectNumber)')
     runtime_sa="${project_number}-compute@developer.gserviceaccount.com"
     info "granting secret access to $runtime_sa"
     for name in "${SECRETS[@]}"; do
-        gcloud secrets describe "$name" --project "$PROJECT" >/dev/null 2>&1 || continue
-        gcloud secrets add-iam-policy-binding "$name" \
+        "$GCLOUD" secrets describe "$name" --project "$PROJECT" >/dev/null 2>&1 || continue
+        "$GCLOUD" secrets add-iam-policy-binding "$name" \
             --member="serviceAccount:${runtime_sa}" \
             --role=roles/secretmanager.secretAccessor \
             --project "$PROJECT" --quiet >/dev/null
@@ -123,19 +153,20 @@ fi
 # --- build the secret and env flags -----------------------------------------
 secret_flags=()
 for name in "${SECRETS[@]}"; do
-    if gcloud secrets describe "$name" --project "$PROJECT" >/dev/null 2>&1; then
+    if "$GCLOUD" secrets describe "$name" --project "$PROJECT" >/dev/null 2>&1; then
         secret_flags+=("${name}=${name}:latest")
     fi
 done
 [ ${#secret_flags[@]} -gt 0 ] || die "no secrets found. Run with --secrets first."
 
-# SLACK_DM_CHANNEL is a user ID, not a credential, so it stays a plain env var.
-slack_channel=$(grep -E '^SLACK_DM_CHANNEL=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)
+# SLACK_DM_CHANNEL is an ID (channel `C…` or user `U…`), not a credential, so it stays a
+# plain env var.
+slack_channel=$(env_value SLACK_DM_CHANNEL)
 
 # Seed key for the first boot. Rotations after this go through /admin/llm-key rather than a
 # redeploy — see scripts/set_bedrock_key.py.
-bedrock_key=$(grep -E '^BEDROCK_API_KEY=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)
-[ -n "$bedrock_key" ] || bedrock_key=$(grep -E '^AWS_BEARER_TOKEN_BEDROCK=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)
+bedrock_key=$(env_value BEDROCK_API_KEY)
+[ -n "$bedrock_key" ] || bedrock_key=$(env_value AWS_BEARER_TOKEN_BEDROCK)
 
 env_vars=(
     "STORAGE_BACKEND=github"   # REQUIRED here: Cloud Run's disk is ephemeral
@@ -160,7 +191,7 @@ joined_secrets=$(IFS=,; echo "${secret_flags[*]}")
 
 # --- deploy -----------------------------------------------------------------
 info "deploying (first build takes ~10 minutes: Chromium and Tectonic)"
-gcloud run deploy "$SERVICE" \
+"$GCLOUD" run deploy "$SERVICE" \
     --source . \
     --project "$PROJECT" \
     --region "$REGION" \
@@ -175,17 +206,19 @@ gcloud run deploy "$SERVICE" \
     --allow-unauthenticated \
     --quiet
 
-url=$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" \
-    --format='value(status.url)')
+# tr -d '\r': gcloud.cmd on Windows emits CRLF, and a trailing \r inside PUBLIC_BASE_URL
+# would land in every approval link in Slack.
+url=$("$GCLOUD" run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" \
+    --format='value(status.url)' | tr -d '\r')
 
 # PUBLIC_BASE_URL isn't known until the service exists, so it takes a second pass. Without
 # it, approval links in Slack point at localhost.
 info "setting PUBLIC_BASE_URL=$url"
-gcloud run services update "$SERVICE" \
+"$GCLOUD" run services update "$SERVICE" \
     --project "$PROJECT" --region "$REGION" \
     --update-env-vars "PUBLIC_BASE_URL=${url}" --quiet >/dev/null
 
-trigger_token=$(grep -E '^TRIGGER_TOKEN=' .env 2>/dev/null | head -1 | cut -d= -f2- || true)
+trigger_token=$(env_value TRIGGER_TOKEN)
 
 printf '\n\033[32mdeployed\033[0m %s\n\n' "$url"
 echo "Next:"

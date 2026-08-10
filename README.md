@@ -142,7 +142,7 @@ GitHub Actions，Secret Manager 不會再顯示第二次）：
 | 位置 | 設定 |
 | --- | --- |
 | Create New App | From scratch，名稱 `Resume Pipeline`，選你的 workspace |
-| OAuth & Permissions → Bot Token Scopes | `chat:write`、`commands`、`im:write` |
+| OAuth & Permissions → Bot Token Scopes | `chat:write`、`commands`（DM 給自己才加 `im:write`） |
 | Install App | Install to Workspace → Allow → 複製 **Bot User OAuth Token**（`xoxb-`） |
 | Basic Information → App Credentials | 複製 **Signing Secret** |
 
@@ -157,6 +157,16 @@ GitHub Actions，Secret Manager 不會再顯示第二次）：
 
 三個子命令（`update` / `status` / `latest`）共用同一個 URL，不用分別註冊。
 只呼叫 `chat.postMessage`，所以不需要 `files:write` — PDF 掛在 Notion 與下載連結。
+
+**`SLACK_DM_CHANNEL` 可以是兩種東西**，需要的 scope 不同：
+
+- **channel ID**（`C…`）—— 只需要 `chat:write`，但**必須把 bot 邀進那個 channel**
+  （在 channel 裡打 `/invite @Resume Pipeline`），否則 `chat.postMessage` 回
+  `not_in_channel`。目前用的就是這種。
+- **你自己的 member ID**（`U…`）—— 走 DM，需要額外的 `im:write`。
+
+診斷時注意：`chat.postMessage` 失敗是 **HTTP 200 + body 裡的 `error`**，不是 4xx，
+所以看 status code 會以為成功。`channel_not_found` 通常是 ID 打錯或 bot 不在裡面。
 
 ### 3. Google Cloud Run
 
