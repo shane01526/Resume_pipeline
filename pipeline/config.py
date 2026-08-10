@@ -10,6 +10,7 @@ misconfigured deploy fails the health check instead of the first cron run.
 
 from __future__ import annotations
 
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -45,17 +46,26 @@ class Settings(BaseSettings):
     llm_model: str = "claude-opus-5"
 
     # --- Bedrock -----------------------------------------------------------
-    # Short-term Bedrock API key (starts with `ABSK`). These expire — up to 12 hours —
-    # which is why `scripts/set_bedrock_key.py` and the /admin/llm-key endpoint exist.
-    # Read from BEDROCK_API_KEY, or from the AWS_BEARER_TOKEN_BEDROCK name the SDK
-    # itself recognises.
+    # Bedrock API key (starts with `bedrock-api-key-`; short-term keys use `ABSK`). These
+    # expire — up to 12 hours — which is why `scripts/set_bedrock_key.py` and the
+    # /admin/llm-key endpoint exist. Read from BEDROCK_API_KEY, or from the
+    # AWS_BEARER_TOKEN_BEDROCK name the SDK itself recognises.
     bedrock_api_key: SecretStr = Field(default=SecretStr(""), alias="AWS_BEARER_TOKEN_BEDROCK")
     aws_region: str = "us-east-1"
 
     # Where the current key is cached so a restarted container doesn't lose it. The web
-    # service holds it in memory too; this file is what survives a redeploy.
+    # service holds it in memory too; this file is what survives a restart.
+    #
+    # Defaults to the platform temp directory rather than a literal "/tmp": on Windows
+    # that path resolves to C:\tmp, which usually does not exist, so the cache write
+    # silently failed and every shell session needed the key re-set. The container is
+    # Linux, where this is /tmp as intended.
+    #
     # Deliberately NOT under state/ — state/ is committed, and a credential must never be.
-    bedrock_key_file: Path = Path("/tmp/bedrock_key.json")
+    # `pipeline/llm_key.py` rejects any path inside the repo rather than trusting this.
+    bedrock_key_file: Path = Field(
+        default_factory=lambda: Path(tempfile.gettempdir()) / "bedrock_key.json"
+    )
 
     # --- Notion ------------------------------------------------------------
     # The integration token (ntn_...). The Resume Master page must be shared with
