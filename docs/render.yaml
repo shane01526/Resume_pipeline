@@ -13,10 +13,12 @@ services:
     name: resume-pipeline
     runtime: docker
     dockerfilePath: ./Dockerfile
-    # Starter, not Free: Chromium plus Tectonic needs ~1GB peak RSS and Free caps at
-    # 512MB, so renders OOM. Free also spins down after inactivity, which would make the
-    # weekly cron trigger time out on a cold start.
-    plan: starter
+    # Starter (512MB) is NOT enough either: the measured peak for a full six-artifact run
+    # is 1041 MiB, because Chromium stays resident while Tectonic compiles. Cloud Run runs
+    # this at 2Gi. On Render that means Standard (2GB) — Starter would OOM mid-LaTeX the
+    # same way Cloud Run did at 1Gi. Free additionally spins down after inactivity, which
+    # would make the weekly trigger time out on a cold start.
+    plan: standard
     region: singapore
     healthCheckPath: /healthz
     autoDeploy: true
@@ -64,6 +66,8 @@ services:
     name: resume-pipeline-cron
     runtime: docker
     dockerfilePath: ./Dockerfile
+    # Starter is fine here, unlike the web service: this job only POSTs to /api/runs and
+    # never renders, so it never loads Chromium or Tectonic.
     plan: starter
     region: singapore
     # Render schedules in UTC. 19:00 Sunday UTC = 03:00 Monday Asia/Taipei, so a run is

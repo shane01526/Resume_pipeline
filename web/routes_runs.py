@@ -90,7 +90,10 @@ async def create_run(
 
     from pipeline.runner import execute_run
 
-    background.add_task(execute_run, run.id)
+    # Hand over this store, not just the id. A fresh store would re-read the run through the
+    # GitHub Contents API, which is only eventually consistent for read-after-write — so the
+    # task logged "unknown run" and exited while the record sat committed in the repo.
+    background.add_task(execute_run, run.id, store)
 
     return JSONResponse(
         {

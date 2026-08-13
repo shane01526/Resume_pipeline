@@ -189,7 +189,7 @@ bash scripts/deploy_cloudrun.sh
 可用環境變數覆寫預設（都有合理預設值，通常不用動）：
 
 ```bash
-REGION=asia-east1 MEMORY=1Gi bash scripts/deploy_cloudrun.sh
+REGION=asia-east1 MEMORY=2Gi bash scripts/deploy_cloudrun.sh
 ```
 
 **為什麼是 Cloud Run 而不是 Render 免費方案**：Render Free 閒置 15 分鐘後 spin down，
@@ -200,7 +200,7 @@ Cloud Run scale-to-zero 沒有這個問題，排程則移到 GitHub Actions。
 
 | 設定 | 值 | 原因 |
 | --- | --- | --- |
-| `--memory` | 1Gi | 實測峰值 54MB + 488MB（Tectonic 是大戶）。512Mi 也夠，留餘裕 |
+| `--memory` | 2Gi | **實測峰值 1041 MiB**。1Gi 會 OOM（見下方說明），2Gi 才有餘裕 |
 | `--timeout` | 900s | 渲染六個檔案要數十秒，預設 300s 會被切斷 |
 | `--max-instances` | 1 | 兩個 instance 會搶著寫同一份 repo 狀態 |
 | `STORAGE_BACKEND` | `github` | **必須** — Cloud Run 磁碟是瞬態的，連續請求可能落在不同 instance |
@@ -231,7 +231,20 @@ curl https://<cloud-run-url>/health
 
 > 想改用 Render 或自架，`docs/render.yaml` 是保留的 blueprint；把 `STORAGE_BACKEND`
 > 設回 `local` 即可 —— 那裡有持久磁碟，`state/` 就是 committed 目錄。
-> 記憶體實測峰值 54MB + 488MB，512MB 方案就夠。
+> 記憶體要 2GB 以上（見下）。
+
+**記憶體：要 2Gi，1Gi 會 OOM。** 這件事我量錯過兩次，記在這裡免得再犯：
+
+線上真實 run 掛在 `Memory limit of 1024 MiB exceeded with 1184 MiB used`，位置是
+LaTeX 階段、兩個 HTML PDF 已經產出之後。用 `docker stats` 量整個 render 流程，
+峰值是 **1041 MiB** —— 本身就超過 1Gi。
+
+之前寫「512MB 就夠」是拿 `local_run.py --render-only` 量的，那是從 fixture 依序渲染，
+漏掉真正花錢的地方：**web service 會讓 Playwright 的 Chromium 一直駐留，而 Tectonic
+在同時跑**，兩個峰值疊在一起。所以 `--memory=512m` 的容器測試會過，線上還是 OOM。
+
+Cloud Run 是按「記憶體 × 時間」計費，而這個服務幾乎都在 idle（scale to zero、大約一週
+跑一次），所以把上限開大幾乎不影響費用。
 
 ---
 

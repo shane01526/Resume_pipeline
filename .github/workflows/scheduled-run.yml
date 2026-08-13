@@ -80,9 +80,17 @@ jobs:
 
           # 202 is expected: the service renders in the background and notifies Slack when
           # a run is ready for review.
+          #
+          # `--data ''` is required, even though this endpoint takes no body. curl omits
+          # Content-Length on a bodiless POST, and Cloud Run's edge rejects that with its own
+          # 411 "POST requests require a Content-length header" before the request reaches
+          # the container — so the weekly trigger failed every time while a plain
+          # httpx.post() (which does send Content-Length: 0) worked fine. `trigger` stays a
+          # query parameter: it is a FastAPI query arg, and a JSON body is ignored.
           status=$(curl -sS -o /tmp/run.json -w '%{http_code}' \
             --max-time 120 \
             -X POST "$SERVICE_URL/api/runs?trigger=Scheduled" \
+            --data '' \
             -H "X-Trigger-Token: $TRIGGER_TOKEN")
 
           echo "HTTP $status"

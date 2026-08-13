@@ -125,10 +125,10 @@ def test_trigger_accepts_and_returns_immediately(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """202 with a preview URL: rendering takes tens of seconds, past any HTTP timeout."""
-    calls: list[str] = []
+    calls: list[tuple[str, object]] = []
 
-    async def fake_execute(run_id: str) -> None:
-        calls.append(run_id)
+    async def fake_execute(run_id: str, store: object = None) -> None:
+        calls.append((run_id, store))
 
     monkeypatch.setattr(runner_module, "execute_run", fake_execute)
 
@@ -139,7 +139,31 @@ def test_trigger_accepts_and_returns_immediately(
     payload = response.json()
     assert payload["run_id"].endswith("-manual")
     assert payload["url"].endswith(f"/runs/{payload['run_id']}")
-    assert calls == [payload["run_id"]]
+    assert [run_id for run_id, _ in calls] == [payload["run_id"]]
+
+
+def test_trigger_hands_its_store_to_the_background_task(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The store must be passed, not reconstructed inside the task.
+
+    With the GitHub backend, a fresh store re-reads the run through the Contents API, which
+    is only eventually consistent for read-after-write: every run on Cloud Run died
+    instantly with "execute_run called for unknown run" while the record sat committed in
+    the repository. Passing the store also passes its cache, which holds the record already.
+    """
+    captured: list[object] = []
+
+    async def fake_execute(run_id: str, store: object = None) -> None:
+        captured.append(store)
+
+    monkeypatch.setattr(runner_module, "execute_run", fake_execute)
+    client.post("/api/runs", headers={"X-Trigger-Token": TRIGGER_TOKEN})
+
+    assert captured, "execute_run was never scheduled"
+    assert isinstance(captured[0], RunStore), (
+        f"expected the request's RunStore to be handed over, got {captured[0]!r}"
+    )
 
 
 def test_unknown_trigger_is_rejected(client: TestClient) -> None:

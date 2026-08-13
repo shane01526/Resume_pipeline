@@ -156,6 +156,23 @@ def test_every_declared_package_is_importable() -> None:
         assert importlib.util.find_spec(module) is not None, f"{name} is not installed"
 
 
+def test_cloudrun_deploy_disables_cpu_throttling() -> None:
+    """The background-task design does not work on Cloud Run without this flag.
+
+    POST /api/runs returns 202 and renders in a FastAPI background task. Cloud Run throttles
+    an instance's CPU to nearly nothing outside a request, so that work crawls and then dies
+    when the idle instance is reclaimed: a real run wrote its diff counts 615s after being
+    triggered (~90s of work locally) and stopped at status "Building" with error: null.
+
+    Asserted here because the failure is silent and remote — no exception, no failed deploy,
+    just a run that never reaches Pending Approval and a Slack notification that never
+    arrives.
+    """
+    script = (REPO_ROOT / "scripts" / "deploy_cloudrun.sh").read_text(encoding="utf-8")
+
+    assert "--no-cpu-throttling" in script
+
+
 def test_every_env_var_the_deploy_script_sets_is_accepted_by_settings() -> None:
     """Parse `--set-env-vars` out of the deploy script and feed it to Settings.
 

@@ -40,16 +40,48 @@ fi
 
 PROJECT="${PROJECT:-$("$GCLOUD" config get-value project 2>/dev/null | tr -d '\r')}"
 
-# 512MB is enough: measured peak is 54MB Python + 488MB in children (Tectonic is the
-# heavy one). 1Gi leaves headroom for a longer resume without changing the free-tier maths.
-MEMORY="${MEMORY:-1Gi}"
-CPU="${CPU:-1}"
+# 2Gi, because 1Gi is not enough and this was measured the wrong way twice.
+#
+# A real run on Cloud Run died with "Memory limit of 1024 MiB exceeded with 1184 MiB used",
+# mid-LaTeX, after both HTML PDFs had been written. Measuring the whole render in one
+# container (docker stats, 2s sampling) gives a peak of 1041 MiB — over the 1Gi limit on its
+# own, before Cloud Run's own overhead.
+#
+# The earlier "512MB is enough" note was measured from `local_run.py --render-only`, which
+# renders sequentially from a fixture. It missed the thing that actually costs: the web
+# service holds Playwright's Chromium resident while Tectonic runs, so the two peaks
+# overlap. That is why the container passed at --memory=512m in testing and still OOMed in
+# production.
+#
+# Cost: Cloud Run bills memory×time, and this service is idle almost always (scale to zero,
+# roughly one run a week), so doubling the ceiling costs approximately nothing.
+MEMORY="${MEMORY:-2Gi}"
+# 1 CPU is under Cloud Run's minimum for 2Gi (it requires >= 1, and 2 for >4Gi); keeping 1
+# is valid, but Tectonic and Chromium both benefit and the extra is only billed while a
+# request is in flight.
+CPU="${CPU:-2}"
 # Rendering six artifacts takes tens of seconds; the default 300s would cut a run short.
 TIMEOUT="${TIMEOUT:-900}"
 # One instance at a time. Two would race on the same repository state, and the loser's
 # commit would be rejected.
 MAX_INSTANCES="${MAX_INSTANCES:-1}"
 CONCURRENCY="${CONCURRENCY:-4}"
+
+# --no-cpu-throttling is passed to `run deploy` below, and the whole design depends on it.
+#
+# POST /api/runs answers 202 immediately and does the nine stages in a FastAPI background
+# task — which is correct on Render, and broken by default on Cloud Run: outside a request
+# Cloud Run throttles the instance's CPU to nearly nothing, so the background work crawls
+# and then dies when the idle instance is reclaimed.
+#
+# Observed exactly that: a run wrote its diff counts (the last step before rendering) 615
+# seconds after being triggered — work that takes ~90s locally — then stopped at status
+# "Building" with `error: null` and no artifacts. A null error with a non-terminal status is
+# the signature of the process being killed rather than raising.
+#
+# The alternative is doing the work inside the request instead of after it. That would need
+# the trigger to hold a connection open for the whole run, so a client timeout would abort a
+# render, and Slack's 3-second ack rule makes it impossible for the /resume command path.
 
 # BEDROCK_API_KEY is deliberately NOT in this list. It expires within 12 hours, so binding
 # it as a Secret Manager version would mean a new Cloud Run revision on every rotation.
@@ -208,6 +240,7 @@ info "deploying (first build takes ~10 minutes: Chromium and Tectonic)"
     --timeout "$TIMEOUT" \
     --max-instances "$MAX_INSTANCES" \
     --concurrency "$CONCURRENCY" \
+    --no-cpu-throttling \
     --set-env-vars "$joined_env" \
     --set-secrets "$joined_secrets" \
     --allow-unauthenticated \

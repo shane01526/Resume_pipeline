@@ -30,10 +30,21 @@ from pipeline.state import Run, RunStatus, RunStore
 log = logging.getLogger(__name__)
 
 
-async def execute_run(run_id: str) -> None:
-    """Run the pipeline for `run_id`. Never raises — failures are recorded on the run."""
+async def execute_run(run_id: str, store: RunStore | None = None) -> None:
+    """Run the pipeline for `run_id`. Never raises — failures are recorded on the run.
+
+    `store` should be the one that created the run. Passing it is not an optimisation: with
+    the GitHub backend, re-reading a just-created run through the Contents API returns 404,
+    because that API is only eventually consistent for read-after-write. Every run died
+    immediately with "execute_run called for unknown run" while the record was sitting in
+    the repository, written and committed. Reusing the caller's store also reuses its cache,
+    which already holds the record from the write.
+
+    The `None` default keeps the by-id entry point usable (a retry, a shell, a future queue
+    worker), where a fresh read is both necessary and safe — by then the write has settled.
+    """
     settings = get_settings()
-    store = RunStore(settings)
+    store = store or RunStore(settings)
 
     run = store.load(run_id)
     if run is None:

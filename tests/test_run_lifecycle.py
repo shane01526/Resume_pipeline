@@ -246,3 +246,39 @@ def test_counts_summary_reads_naturally() -> None:
 def test_zero_diff_is_detectable() -> None:
     """The runner keys "skip the notification" off this."""
     assert DiffCounts().total == 0
+
+
+async def test_execute_run_uses_the_store_it_is_given(
+    store: RunStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A store whose backing data is not yet readable must still work if it is passed in.
+
+    Simulates GitHub's read-after-write lag, which is what actually happened: the run was
+    committed, `load()` through a *fresh* store returned None, and every run died at
+    "execute_run called for unknown run". The regression is invisible with LocalStorage —
+    a filesystem read-after-write always succeeds — so the lag is injected here.
+    """
+    from pipeline import runner as runner_module
+
+    run = store.create(Trigger.MANUAL)
+
+    fresh_stores: list[RunStore] = []
+    real_init = RunStore.__init__
+
+    def tracking_init(self: RunStore, *args: object, **kwargs: object) -> None:
+        real_init(self, *args, **kwargs)  # type: ignore[arg-type]
+        fresh_stores.append(self)
+
+    executed: list[str] = []
+
+    async def fake_execute_body(run_arg, store_arg, settings_arg) -> None:  # noqa: ANN001
+        executed.append(run_arg.id)
+
+    monkeypatch.setattr(RunStore, "__init__", tracking_init)
+    monkeypatch.setattr(runner_module, "_execute", fake_execute_body)
+
+    await runner_module.execute_run(run.id, store)
+
+    assert executed == [run.id], "the run was not executed from the store it was handed"
+    # No new store may be constructed: constructing one is what triggers the stale read.
+    assert fresh_stores == [], f"execute_run built {len(fresh_stores)} extra store(s)"
