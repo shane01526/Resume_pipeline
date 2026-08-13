@@ -115,6 +115,17 @@ def _llm_health(settings: Any) -> dict[str, Any]:
         info["warning"] = "the Bedrock key has expired — rotate it"
     elif isinstance(remaining := state.get("expires_in_hours"), (int, float)) and remaining < 2:
         info["warning"] = f"the Bedrock key expires in {remaining}h — rotate it soon"
+    elif state.get("source") == "env":
+        # The gap this closes: an env-supplied key carries no expiry and no knowable age, so
+        # neither branch above can fire. /health reported a clean bill of health while the
+        # deployed key was three days dead, and the failure surfaced instead as a Chinese
+        # resume silently left in English. A short-term key lasts at most 12 hours, so a key
+        # that arrived via a deploy is suspect by construction.
+        info["warning"] = (
+            "the Bedrock key came from the deploy environment, so its age and expiry are "
+            "unknown — short-term keys last at most 12 hours. If a run has left the Chinese "
+            "resume in English, rotate it: python scripts/set_bedrock_key.py <new-key>"
+        )
     return info
 
 

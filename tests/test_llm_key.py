@@ -290,3 +290,66 @@ def test_auth_failure_on_first_party_stays_plain() -> None:
     settings = Settings(llm_provider="anthropic")
     message = _call_failure_message("claude-opus-5", settings, _HTTPError(401))
     assert "set_bedrock_key.py" not in message
+
+
+# --- honest provenance --------------------------------------------------------
+
+
+def test_env_supplied_key_reports_no_age(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """An env key's age is unknowable, so status must not invent one.
+
+    A real run failed with "It most likely expired ... and the loaded one is 0.0h old" —
+    self-contradictory, and it sends you looking at the wrong thing. 0.0h was the time since
+    the *process read* the variable; the key itself was three days old, seeded by a deploy.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setenv("BEDROCK_API_KEY", VALID_KEY)
+    settings = Settings(
+        repo_root=repo,
+        bedrock_key_file=tmp_path / "absent.json",
+        llm_provider="bedrock",
+        bedrock_api_key=SecretStr(VALID_KEY),
+    )
+
+    payload = status(settings)
+
+    assert payload["configured"] is True
+    assert payload["source"] == "env"
+    assert payload["age_hours"] is None
+    assert "unknown" in str(payload["age_note"])
+    assert VALID_KEY not in json.dumps(payload, default=str)
+
+
+def test_explicitly_set_key_does_report_an_age(settings: Settings) -> None:
+    """set_key() records a real timestamp, so the age there is meaningful."""
+    set_key(VALID_KEY, settings)
+
+    payload = status(settings)
+
+    assert payload["source"] in {"set", "cache"}
+    assert isinstance(payload["age_hours"], float)
+
+
+def test_401_message_does_not_claim_an_age_it_cannot_know(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The 401 text is what someone reads when a scheduled run fails."""
+    from pipeline.llm import _call_failure_message
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setenv("BEDROCK_API_KEY", VALID_KEY)
+    settings = Settings(
+        repo_root=repo,
+        bedrock_key_file=tmp_path / "absent.json",
+        llm_provider="bedrock",
+        bedrock_api_key=SecretStr(VALID_KEY),
+    )
+
+    message = _call_failure_message("anthropic.claude-opus-5", settings, _HTTPError(401))
+
+    assert "0.0h old" not in message
+    assert "real age is unknown" in message
+    assert "set_bedrock_key.py" in message
+    assert VALID_KEY not in message

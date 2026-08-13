@@ -73,6 +73,13 @@ class _StoredKey:
     key: str
     set_at: datetime
     expires_at: datetime | None
+    # Where the key came from, because it decides whether `set_at` means anything. For an
+    # env-supplied key it is just the moment we happened to read it, so reporting an age
+    # from it is worse than reporting nothing: a run failed with
+    #   "It most likely expired ... and the loaded one is 0.0h old"
+    # which reads as self-contradictory and sends you looking in the wrong place. The key
+    # was in fact three days old, minted before the deploy that seeded it.
+    source: str = "set"
 
     def age(self) -> timedelta:
         return datetime.now(UTC) - self.set_at
@@ -183,6 +190,8 @@ def _load_cached(settings: Settings) -> _StoredKey | None:
             key=data["key"],
             set_at=datetime.fromisoformat(data["set_at"]),
             expires_at=datetime.fromisoformat(expires_raw) if expires_raw else None,
+            # A real set time, recorded when set_key() wrote the file, so the age is real.
+            source="cache",
         )
     except (OSError, ValueError, KeyError) as exc:
         log.warning("ignoring unreadable key cache %s: %s", path, exc)
@@ -215,8 +224,11 @@ def current_key(settings: Settings, *, use_env: bool = True) -> _StoredKey | Non
         "AWS_BEARER_TOKEN_BEDROCK", ""
     )
     if env_key:
-        # No expiry is known for an env-supplied key — it was set out of band.
-        return _StoredKey(key=env_key.strip(), set_at=datetime.now(UTC), expires_at=None)
+        # Neither the expiry nor the age is knowable here: the value was set out of band,
+        # possibly by a deploy days ago. set_at is the read time, flagged as such by source.
+        return _StoredKey(
+            key=env_key.strip(), set_at=datetime.now(UTC), expires_at=None, source="env"
+        )
 
     return None
 
@@ -251,8 +263,14 @@ def status(settings: Settings, *, use_env: bool = True) -> dict[str, object]:
     out: dict[str, object] = {
         "configured": True,
         "suffix": stored.key[-4:],
-        "age_hours": round(stored.age().total_seconds() / 3600, 1),
+        "source": stored.source,
     }
+    if stored.source == "env":
+        # An env key's age is unknown — it may predate the container by days.
+        out["age_hours"] = None
+        out["age_note"] = "set via environment at deploy time; true age unknown"
+    else:
+        out["age_hours"] = round(stored.age().total_seconds() / 3600, 1)
     if stored.expires_at:
         remaining = stored.expires_at - datetime.now(UTC)
         out["expires_at"] = stored.expires_at.isoformat()

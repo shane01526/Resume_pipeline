@@ -189,11 +189,26 @@ def _call_failure_message(model: str, settings: Settings, exc: Exception) -> str
 
         info = key_status(settings)
         suffix = info.get("suffix", "????")
-        age = info.get("age_hours", "?")
+        age = info.get("age_hours")
+
+        # Only claim an age when one is actually known. An env-supplied key reports
+        # age_hours=None because `set_at` is just when the process read it — the previous
+        # version printed "most likely expired ... and the loaded one is 0.0h old", which
+        # contradicts itself in one sentence. The key was three days old, seeded by a deploy.
+        if age is None:
+            provenance = (
+                f"The loaded key (…{suffix}) came from the environment (BEDROCK_API_KEY at "
+                "deploy time), so its real age is unknown — it can easily predate this "
+                "container by days."
+            )
+        else:
+            provenance = f"The loaded key (…{suffix}) was set {age}h ago."
+
         return (
             f"Bedrock rejected the key (HTTP {status}). It most likely expired — short-term "
-            f"keys last at most 12 hours, and the loaded one (…{suffix}) is {age}h old.\n"
-            "Mint a new key, then run:  python scripts/set_bedrock_key.py <ABSK...>\n"
+            f"keys last at most 12 hours. {provenance}\n"
+            "Mint a new key, then run:  python scripts/set_bedrock_key.py <new-key>\n"
+            "That updates this machine and the deployed service without a redeploy.\n"
             f"(underlying error: {exc})"
         )
     return f"{model} call failed: {exc}"
