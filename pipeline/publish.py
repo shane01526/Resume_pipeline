@@ -98,7 +98,7 @@ async def _publish(run: Run, store: RunStore, settings: Settings, decided_by: st
     # Cloud Run there is no working copy, so each file is a separate API commit — less
     # tidy, but the alternative is cloning the repo on every cold start.
     if settings.storage_backend == "github":
-        run.commit_sha = _publish_via_api(run, published, settings)
+        run.commit_sha = _publish_via_api(run, published, settings, tag)
     else:
         run.commit_sha = _commit_and_push(run, tag, settings)
     store.save(run)
@@ -141,12 +141,15 @@ def _copy_artifacts(source: Path, output_dir: Path) -> list[Path]:
     return written
 
 
-def _publish_via_api(run: Run, published: list[Path], settings: Settings) -> str:
+def _publish_via_api(run: Run, published: list[Path], settings: Settings, tag: str) -> str:
     """Write the artifacts through the GitHub Contents API, one commit per file.
 
     Used where there is no working copy. Ordering matters: the JSON snapshots go last, so
     if a PDF write fails the baseline still describes the previously published state and
     the next run's diff stays meaningful.
+
+    Returns the head commit sha and creates `tag`, so this path records the same two things
+    the working-copy path does.
     """
     from pipeline.storage import GitHubStorage
 
@@ -155,18 +158,53 @@ def _publish_via_api(run: Run, published: list[Path], settings: Settings) -> str
         pdfs = [p for p in published if p.suffix in (".pdf", ".docx")]
         snapshots = [p for p in published if p.suffix == ".json"]
 
-        last_sha = ""
         for path in [*pdfs, *snapshots]:
             key = path.relative_to(settings.repo_root).as_posix()
             storage.write(key, path.read_bytes(), f"Publish {key} (run {run.id})")
-            last_sha = storage._sha_of(key) or last_sha
             log.info("published %s", key)
 
-        # A file blob sha, not a commit sha — the Contents API doesn't return the latter
-        # per write. It still identifies what was published, which is what the audit needs.
-        return last_sha
+        # The head commit after the writes. This used to return the last file's *blob* sha,
+        # which is not a commit and cannot be looked up as one — `git/commits/<sha>` gave a
+        # 404 for a value stored in a field called `commit_sha` and shown on the diff page as
+        # the published commit. Verified against the real published sha.
+        head = _head_commit(storage, settings)
+        if head:
+            _create_tag(storage, settings, tag, head)
+        return head
     finally:
         storage.close()
+
+
+def _head_commit(storage: object, settings: Settings) -> str:
+    """The branch's current head commit sha, or "" if it cannot be read."""
+    response = storage._client.get(  # noqa: SLF001 - same package, one HTTP client
+        f"/repos/{settings.github_repo}/commits/{settings.git_branch}"
+    )
+    if response.status_code != 200:
+        log.warning("could not read the head commit (%s)", response.status_code)
+        return ""
+    return response.json().get("sha", "")
+
+
+def _create_tag(storage: object, settings: Settings, tag: str, sha: str) -> None:
+    """Tag the published commit. Best-effort: a failed tag must not fail the publish.
+
+    The Cloud Run path silently skipped tagging while the log still announced
+    "published run X as resume-YYYYMMDD-HHMM", so every publish claimed a tag that did not
+    exist — `git tag -l` came back empty after a successful publish.
+    """
+    client = storage._client  # noqa: SLF001
+    repo = settings.github_repo
+    response = client.post(f"/repos/{repo}/git/refs", json={"ref": f"refs/tags/{tag}", "sha": sha})
+    if response.status_code == 422:
+        # Already exists (a second publish in the same minute). Move it.
+        response = client.patch(
+            f"/repos/{repo}/git/refs/tags/{tag}", json={"sha": sha, "force": True}
+        )
+    if response.status_code >= 400:
+        log.warning("could not create tag %s (%s)", tag, response.status_code)
+    else:
+        log.info("tagged %s at %s", tag, sha[:8])
 
 
 def _commit_and_push(run: Run, tag: str, settings: Settings) -> str:

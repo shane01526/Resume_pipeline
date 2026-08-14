@@ -375,3 +375,68 @@ def test_slack_endpoints_reject_unsigned_requests(client: TestClient) -> None:
     """These are public endpoints whose payloads can publish."""
     assert client.post("/slack/commands", data={"text": "update"}).status_code == 401
     assert client.post("/slack/interactions", data={"payload": "{}"}).status_code == 401
+
+
+# --- what the API publish path records ----------------------------------------
+
+
+def test_api_publish_records_a_commit_and_creates_the_tag(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The Cloud Run publish path must record a *commit* sha and actually tag it.
+
+    Both were wrong on the deployed service: `commit_sha` held the last file's blob sha, so
+    `GET /git/commits/<sha>` returned 404 for a value the diff page presents as the published
+    commit; and no tag was ever created, while the log still announced "published run X as
+    resume-YYYYMMDD-HHMM" on every publish. `git tag -l` was empty after a real publish.
+    """
+    import pipeline.publish as pub
+
+    calls: list[tuple[str, str]] = []
+
+    class _FakeClient:
+        def get(self, path: str):  # noqa: ANN202
+            calls.append(("GET", path))
+            return _FakeResponse(200, {"sha": "c" * 40})
+
+        def post(self, path: str, json: dict):  # noqa: A002, ANN202
+            calls.append(("POST", path))
+            assert json["sha"] == "c" * 40, "the tag must point at the head commit"
+            return _FakeResponse(201, {})
+
+        def patch(self, path: str, json: dict):  # noqa: A002, ANN202
+            calls.append(("PATCH", path))
+            return _FakeResponse(200, {})
+
+    class _FakeResponse:
+        def __init__(self, status: int, payload: dict) -> None:
+            self.status_code = status
+            self._payload = payload
+
+        def json(self) -> dict:
+            return self._payload
+
+    class _FakeStorage:
+        def __init__(self, *_a: object, **_k: object) -> None:
+            self._client = _FakeClient()
+            self.written: list[str] = []
+
+        def write(self, key: str, data: bytes, message: str) -> None:  # noqa: ARG002
+            self.written.append(key)
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr("pipeline.storage.GitHubStorage", _FakeStorage)
+
+    artifact = settings.output_dir / "en" / "resume.pdf"
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_bytes(b"%PDF fake")
+
+    run = RunStore(settings).create(Trigger.MANUAL)
+    sha = pub._publish_via_api(run, [artifact], settings, "resume-20260814-0347")
+
+    assert sha == "c" * 40, "expected the head commit sha, not a file blob sha"
+    assert ("POST", "/repos/shane01526/Resume_pipeline/git/refs") in calls, (
+        f"no tag ref was created; calls were {calls}"
+    )
