@@ -57,6 +57,14 @@ class Storage(ABC):
     def list_prefix(self, prefix: str) -> list[str]:
         """Paths directly under `prefix`, files and directories alike."""
 
+    @abstractmethod
+    def walk(self, prefix: str) -> list[str]:
+        """Every *file* under `prefix`, recursively, as full paths.
+
+        Distinct from `list_prefix`, which is one level deep and includes directories. Run
+        artifacts are nested (`artifacts/en/resume.pdf`), so restoring them needs this.
+        """
+
     def read_text(self, path: str) -> str | None:
         data = self.read(path)
         return data.decode("utf-8") if data is not None else None
@@ -110,6 +118,19 @@ class LocalStorage(Storage):
         if not full.is_dir():
             return []
         return sorted(f"{prefix}/{child.name}".lstrip("/") for child in full.iterdir())
+
+    def walk(self, prefix: str) -> list[str]:
+        full = self._full(prefix)
+        if full.is_file():
+            return [prefix]
+        if not full.is_dir():
+            return []
+        root = self._root.resolve()
+        return sorted(
+            child.resolve().relative_to(root).as_posix()
+            for child in full.rglob("*")
+            if child.is_file()
+        )
 
 
 class GitHubStorage(Storage):
@@ -220,7 +241,7 @@ class GitHubStorage(Storage):
 
     def delete_prefix(self, prefix: str, message: str) -> int:
         deleted = 0
-        for path in self._walk(prefix):
+        for path in self.walk(prefix):
             sha = self._sha_of(path)
             if sha is None:
                 continue
@@ -253,7 +274,7 @@ class GitHubStorage(Storage):
         payload = response.json()
         return payload.get("sha") if isinstance(payload, dict) else None
 
-    def _walk(self, prefix: str) -> list[str]:
+    def walk(self, prefix: str) -> list[str]:
         """Every file under `prefix`, recursively. Directories have no sha to delete."""
         files: list[str] = []
         response = self._client.get(
@@ -266,7 +287,7 @@ class GitHubStorage(Storage):
             return [prefix]
         for entry in payload:
             if entry["type"] == "dir":
-                files.extend(self._walk(entry["path"]))
+                files.extend(self.walk(entry["path"]))
             else:
                 files.append(entry["path"])
         return files

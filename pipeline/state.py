@@ -12,6 +12,7 @@ Postgres later means reimplementing these functions and nothing else.
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -22,6 +23,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from pipeline.config import Settings
 from pipeline.storage import Storage, build_storage
+
+log = logging.getLogger(__name__)
 
 
 class RunStatus(StrEnum):
@@ -184,6 +187,62 @@ class RunStore:
     def load_diff(self, run_id: str) -> dict[str, Any] | None:
         raw = self._storage.read_text(self._diff_key(run_id))
         return json.loads(raw) if raw else None
+
+    # --- rendered files ----------------------------------------------------
+    # `run_dir()` above is scratch space on the instance's own disk. On Cloud Run that disk
+    # dies with the instance, so anything only written there is gone by the time you act on
+    # the Slack notification — which is most of the point of the notification.
+    #
+    # Two things broke because of it, both measured on the deployed service:
+    #   * every page image on the diff page returned 404, so the visual before/after tab
+    #     was empty;
+    #   * publish reads artifacts_dir() from disk, so approving a run whose instance had
+    #     been recycled would fail with "no artifacts directory — it may have been
+    #     discarded already", which points at the wrong cause entirely.
+    #
+    # So the rendered files go through storage too. `discard()` already deleted the durable
+    # copies, anticipating this.
+
+    def save_run_file(self, run_id: str, subpath: str, data: bytes) -> None:
+        """Persist one rendered file (`artifacts/en/resume.pdf`, `pages/en/resume-1.png`)."""
+        self._storage.write(f"state/runs/{run_id}/{subpath}", data, f"Run {run_id}: {subpath}")
+
+    def load_run_file(self, run_id: str, subpath: str) -> bytes | None:
+        """A rendered file, preferring local disk and falling back to durable storage.
+
+        Local first because it is free when the same instance both rendered and serves —
+        the common case — and because the local copy is always the one just written.
+        """
+        local = self.run_dir(run_id) / subpath
+        if local.is_file():
+            return local.read_bytes()
+        return self._storage.read(f"state/runs/{run_id}/{subpath}")
+
+    def materialize_artifacts(self, run_id: str) -> bool:
+        """Restore `artifacts/` from durable storage onto local disk.
+
+        Publishing copies files with shutil, so it needs them on a real filesystem. Returns
+        whether anything is there afterwards, so the caller can tell "nothing was ever
+        rendered" from "this instance simply did not render it".
+        """
+        target = self.artifacts_dir(run_id)
+        if target.is_dir() and any(target.rglob("*")):
+            return True
+
+        prefix = f"state/runs/{run_id}/artifacts"
+        restored = 0
+        for key in self._storage.walk(prefix):
+            data = self._storage.read(key)
+            if data is None:
+                continue
+            path = self.run_dir(run_id) / key.split(f"state/runs/{run_id}/", 1)[-1]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+            restored += 1
+
+        if restored:
+            log.info("restored %d artifact(s) for run %s from storage", restored, run_id)
+        return restored > 0
 
     def list_runs(self, *, limit: int = 50) -> list[Run]:
         # Run ids are timestamp-prefixed, so reverse-sorted names are newest first.

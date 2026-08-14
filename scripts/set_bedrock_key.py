@@ -147,18 +147,37 @@ def main() -> int:
             print(f"ERROR: key must start with one of {list(KEY_PREFIXES)}")
             return 1
 
+    # A skipped remote is a FAILURE unless --local was asked for. Rotating a key that the
+    # deployed service never receives is the exact problem this script exists to solve, and
+    # printing "Done" after skipping it sends you away believing the service is fixed —
+    # which happened: PUBLIC_BASE_URL was empty in .env, so every rotation updated only the
+    # laptop while the deployed key stayed expired.
     ok_remote = True
     if not args.local:
         if not base_url or "localhost" in base_url:
-            print("remote: skipped (PUBLIC_BASE_URL is unset or local)")
+            print(
+                "remote: NOT UPDATED - PUBLIC_BASE_URL is unset or points at localhost.\n"
+                "  The deployed service still has the OLD key.\n"
+                "  Put your Cloud Run URL in .env, e.g.\n"
+                "     PUBLIC_BASE_URL=https://resume-pipeline-xxxxx.a.run.app\n"
+                "  (`bash scripts/deploy_cloudrun.sh` now writes it there for you), or pass\n"
+                "  --local if you really only meant this machine."
+            )
+            ok_remote = False
         elif not token:
-            print("remote: skipped (TRIGGER_TOKEN is not set - cannot authenticate)")
+            print(
+                "remote: NOT UPDATED - TRIGGER_TOKEN is empty, so the request cannot be\n"
+                "  authenticated. The deployed service still has the OLD key."
+            )
+            ok_remote = False
         else:
             print(f"remote ({base_url}):")
             ok_remote = push_remote(key, base_url, token, expires_at)
 
     if ok_local and ok_remote:
-        print("\nDone. Verify with: python scripts/set_bedrock_key.py --status")
+        where = "this machine" if args.local else "this machine and the deployed service"
+        print(f"\nDone - {where} updated.")
+        print("Verify with: python scripts/set_bedrock_key.py --status")
         return 0
     return 1
 

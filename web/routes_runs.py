@@ -17,7 +17,7 @@ import logging
 import secrets
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from pipeline.config import Settings, get_settings
 from pipeline.state import Run, RunStatus, RunStore, Trigger
@@ -150,13 +150,13 @@ async def diff_page(run_id: str) -> HTMLResponse:
 
 
 @router.get("/runs/{run_id}/pages/{lang}/{filename}")
-async def page_image(run_id: str, lang: str, filename: str) -> FileResponse:
+async def page_image(run_id: str, lang: str, filename: str) -> Response:
     """Serve a rasterized page image for the diff page's visual tab."""
     settings = get_settings()
     store = RunStore(settings)
 
     # Path traversal guard: run_id, lang, and filename all come from the URL, and this
-    # endpoint reads from disk. Resolving and then checking containment blocks `..`
+    # resolves into a storage key. Resolving and then checking containment blocks `..`
     # segments and symlinks that a name-only check would miss.
     base = store.pages_dir(run_id).resolve()
     try:
@@ -165,12 +165,22 @@ async def page_image(run_id: str, lang: str, filename: str) -> FileResponse:
     except (ValueError, OSError):
         raise HTTPException(404, "not found") from None
 
-    if not path.is_file() or path.suffix != ".png":
+    if path.suffix != ".png":
+        raise HTTPException(404, "not found")
+
+    # Through the store, not FileResponse. These images live on the disk of whichever
+    # instance rendered them, and on Cloud Run that instance is usually gone by the time you
+    # open the notification — every page image returned 404 on the deployed service while
+    # the run sat Pending Approval. The store checks local disk first, then durable storage.
+    data = store.load_run_file(run_id, f"pages/{lang}/{filename}")
+    if data is None:
         raise HTTPException(404, "not found")
 
     # Immutable: a run's page images never change once written.
-    return FileResponse(
-        path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400, immutable"}
+    return Response(
+        content=data,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400, immutable"},
     )
 
 

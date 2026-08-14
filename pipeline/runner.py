@@ -132,6 +132,11 @@ async def _execute(run: Run, store: RunStore, settings: Settings) -> None:
     # than the one that rendered this run.
     store.save_diff(run.id, diff.model_dump(mode="json"))
 
+    # Same reason, for the files themselves. Without this the rendered PDFs and page images
+    # exist only on the instance that made them, so on Cloud Run the diff page's visual tab
+    # 404s and approving later fails for want of artifacts. Measured, not theoretical.
+    _persist_rendered_files(store, run.id)
+
     run.status = RunStatus.PENDING_APPROVAL
     store.save(run)
 
@@ -197,6 +202,44 @@ def _rasterize(written: list[Path], store: RunStore, run: Run, settings: Setting
             )
         except PageRenderError as exc:
             log.warning("could not rasterize %s: %s", pdf.name, exc)
+
+
+def _persist_rendered_files(store: RunStore, run_id: str) -> None:
+    """Copy this run's artifacts and page images into durable storage.
+
+    Best-effort per file: losing one page image should degrade the visual tab, not fail a
+    run that has already produced a reviewable diff. A total failure is logged loudly
+    because the consequence is silent — the review page simply looks empty later.
+
+    With the local backend this is a no-op in effect: `run_dir()` is already inside the
+    committed `state/` tree, so the write lands on the same bytes it read.
+    """
+    run_dir = store.run_dir(run_id)
+    if not run_dir.is_dir():
+        return
+
+    saved = failed = 0
+    for path in sorted(run_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        subpath = path.relative_to(run_dir).as_posix()
+        # run.json and diff.json already went through the store, with their own messages.
+        if subpath in ("run.json", "diff.json"):
+            continue
+        try:
+            store.save_run_file(run_id, subpath, path.read_bytes())
+            saved += 1
+        except Exception as exc:  # noqa: BLE001 - one bad file must not fail the run
+            failed += 1
+            log.warning("could not persist %s for run %s: %s", subpath, run_id, exc)
+
+    log.info("persisted %d rendered file(s) for run %s", saved, run_id)
+    if failed and not saved:
+        log.error(
+            "no rendered file could be persisted for run %s — the diff page will show no "
+            "page images once this instance is gone, and approving it will fail",
+            run_id,
+        )
 
 
 def _write_json(path: Path, resume: Resume) -> None:

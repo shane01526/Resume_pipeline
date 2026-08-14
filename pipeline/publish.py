@@ -61,10 +61,18 @@ async def publish_run(run_id: str, decided_by: str = "web") -> None:
 
 
 async def _publish(run: Run, store: RunStore, settings: Settings, decided_by: str) -> None:
+    # Approval arrives in its own request, minutes or days after the render, so on Cloud Run
+    # it is usually served by an instance that has never seen this run's files. Pull them
+    # back from durable storage first; without this, every approval after an instance
+    # recycle failed with "no artifacts directory — it may have been discarded already",
+    # which blames the wrong thing and reads as if the run had been rejected.
+    store.materialize_artifacts(run.id)
+
     artifacts = store.artifacts_dir(run.id)
     if not artifacts.is_dir():
         raise PublishError(
-            f"run {run.id} has no artifacts directory — it may have been discarded already"
+            f"run {run.id} has no artifacts, on disk or in storage — nothing was rendered, "
+            "or the run was already discarded"
         )
 
     # --- 1. Move artifacts into output/ ------------------------------------

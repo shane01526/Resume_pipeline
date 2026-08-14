@@ -7,6 +7,7 @@ matter more than any single stage working.
 
 from __future__ import annotations
 
+import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import pytest
 
 from pipeline.config import Settings
 from pipeline.state import DiffCounts, RunStatus, RunStore, Trigger, new_run_id
+from pipeline.storage import Storage
 
 
 @pytest.fixture
@@ -282,3 +284,127 @@ async def test_execute_run_uses_the_store_it_is_given(
     assert executed == [run.id], "the run was not executed from the store it was handed"
     # No new store may be constructed: constructing one is what triggers the stale read.
     assert fresh_stores == [], f"execute_run built {len(fresh_stores)} extra store(s)"
+
+
+# --- surviving an instance that no longer has the files -----------------------
+#
+# These use _DictStorage rather than the default LocalStorage. That is the whole point:
+# with LocalStorage the durable copy and the scratch copy are the *same file*, so a test
+# can delete the scratch copy and still "find" the durable one — which is precisely why the
+# production bug was invisible to a green suite. An earlier version of these tests passed
+# with the persistence step removed for exactly that reason.
+
+
+@pytest.fixture
+def split_store(tmp_path: Path) -> RunStore:
+    """A store whose durable layer is separate from its local scratch disk, like Cloud Run."""
+    (tmp_path / "state").mkdir()
+    settings = Settings(repo_root=tmp_path, approval_timeout_hours=72.0)
+    return RunStore(settings, storage=_DictStorage({}))
+
+
+# Not a real PNG — nothing decodes it here, only the byte-for-byte round trip matters.
+PNG_BYTES = b"fake-png-bytes-for-round-trip"
+
+
+def _render_fake_output(store: RunStore, run_id: str) -> None:
+    page = store.pages_dir(run_id) / "en" / "resume-1.png"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_bytes(PNG_BYTES)
+    for name in ("resume.json", "en/resume.pdf", "zh/resume.pdf"):
+        path = store.artifacts_dir(run_id) / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"{}" if name.endswith(".json") else b"%PDF fake")
+
+
+def _wipe_local_disk(store: RunStore, run_id: str) -> RunStore:
+    """Drop the scratch copies, keeping the durable layer — an instance being recycled."""
+    shutil.rmtree(store.run_dir(run_id))
+    return RunStore(store._settings, storage=store._storage)  # noqa: SLF001
+
+
+def test_page_images_survive_a_recycled_instance(split_store: RunStore) -> None:
+    """The measured failure: a run sat Pending Approval while every page image 404'd,
+    because the PNGs existed only on the disk of the instance that rendered them."""
+    from pipeline.runner import _persist_rendered_files
+
+    run = split_store.create(Trigger.SCHEDULED)
+    _render_fake_output(split_store, run.id)
+    _persist_rendered_files(split_store, run.id)
+
+    fresh = _wipe_local_disk(split_store, run.id)
+
+    assert fresh.load_run_file(run.id, "pages/en/resume-1.png") == PNG_BYTES
+
+
+def test_publish_restores_artifacts_from_storage(split_store: RunStore) -> None:
+    """Approval is a separate request, so publish cannot depend on local disk.
+
+    Before this, approving after a recycle failed with "no artifacts directory — it may have
+    been discarded already", which blames rejection rather than ephemeral disk.
+    """
+    from pipeline.runner import _persist_rendered_files
+
+    run = split_store.create(Trigger.SCHEDULED)
+    _render_fake_output(split_store, run.id)
+    _persist_rendered_files(split_store, run.id)
+
+    fresh = _wipe_local_disk(split_store, run.id)
+    assert fresh.materialize_artifacts(run.id) is True
+
+    restored = fresh.artifacts_dir(run.id)
+    assert {p.relative_to(restored).as_posix() for p in restored.rglob("*") if p.is_file()} == {
+        "resume.json",
+        "en/resume.pdf",
+        "zh/resume.pdf",
+    }
+
+
+def test_materialize_reports_when_nothing_was_ever_rendered(split_store: RunStore) -> None:
+    """So the caller can tell "not on this instance" from "never existed"."""
+    run = split_store.create(Trigger.SCHEDULED)
+    fresh = _wipe_local_disk(split_store, run.id)
+
+    assert fresh.materialize_artifacts(run.id) is False
+
+
+def test_run_json_is_not_duplicated_by_the_file_sweep(split_store: RunStore) -> None:
+    """run.json and diff.json already go through the store with their own commit messages;
+    sweeping them again would double every run's commits."""
+    from pipeline.runner import _persist_rendered_files
+
+    run = split_store.create(Trigger.SCHEDULED)
+    _render_fake_output(split_store, run.id)
+    _persist_rendered_files(split_store, run.id)
+
+    keys = split_store._storage.walk(f"state/runs/{run.id}")  # noqa: SLF001
+    swept = [k for k in keys if k.endswith(("/run.json", "/diff.json"))]
+
+    assert swept == [f"state/runs/{run.id}/run.json"], (
+        "expected only the store's own run.json write, not a second copy from the sweep"
+    )
+
+
+class _DictStorage(Storage):
+    """Durable-only storage with no filesystem behind it."""
+
+    def __init__(self, data: dict[str, bytes]) -> None:
+        self._data = dict(data)
+
+    def read(self, path: str) -> bytes | None:
+        return self._data.get(path)
+
+    def write(self, path: str, data: bytes, message: str) -> None:  # noqa: ARG002
+        self._data[path] = data
+
+    def delete_prefix(self, prefix: str, message: str) -> int:  # noqa: ARG002
+        keys = [k for k in self._data if k.startswith(prefix)]
+        for key in keys:
+            del self._data[key]
+        return len(keys)
+
+    def list_prefix(self, prefix: str) -> list[str]:
+        return sorted({k for k in self._data if k.startswith(prefix)})
+
+    def walk(self, prefix: str) -> list[str]:
+        return sorted(k for k in self._data if k.startswith(prefix))

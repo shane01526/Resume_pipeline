@@ -258,6 +258,29 @@ info "setting PUBLIC_BASE_URL=$url"
     --project "$PROJECT" --region "$REGION" \
     --update-env-vars "PUBLIC_BASE_URL=${url}" --quiet >/dev/null
 
+# Write it into the local .env too. This is not a convenience: scripts/set_bedrock_key.py
+# reads PUBLIC_BASE_URL to find the deployed service, and with it empty the script skipped
+# the remote update, printed "Done", and left the deployed key untouched — the one thing it
+# exists to prevent. Silent partial success is the worst failure mode for a rotation tool.
+python - "$url" <<'PY'
+import sys
+from pathlib import Path
+
+url = sys.argv[1]
+path = Path(".env")
+if not path.is_file():
+    raise SystemExit(0)
+
+lines = path.read_text(encoding="utf-8").splitlines()
+line = f"PUBLIC_BASE_URL={url}"
+if any(existing.startswith("PUBLIC_BASE_URL=") for existing in lines):
+    lines = [line if e.startswith("PUBLIC_BASE_URL=") else e for e in lines]
+else:
+    lines.append(line)
+path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+print(f"  .env: PUBLIC_BASE_URL={url}")
+PY
+
 trigger_token=$(env_value TRIGGER_TOKEN)
 
 printf '\n\033[32mdeployed\033[0m %s\n\n' "$url"
