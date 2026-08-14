@@ -1,0 +1,640 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "applegirlmabel@gmail.com",
+          "before": null,
+          "field": "email"
+        },
+        {
+          "after": "WU, YU-HSUAN",
+          "before": null,
+          "field": "name"
+        }
+      ],
+      "key": "profile",
+      "kind": "added",
+      "label": "WU, YU-HSUAN",
+      "notion_page_id": null,
+      "section": "profile"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Member of NTU Computational Linguistics Specialized Program, Member of NTU Chinese-English Translation Program, Relevant Coursework: NLP, Computational Linguistics, Phonology, Semantics",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "NLP, Computational Linguistics, Phonology, Semantics",
+          "before": null,
+          "field": "coursework"
+        },
+        {
+          "after": "Bachelor of Arts",
+          "before": null,
+          "field": "degree"
+        },
+        {
+          "after": "2026-06-30",
+          "before": null,
+          "field": "end"
+        },
+        {
+          "after": "Foreign Languages and Literatures",
+          "before": null,
+          "field": "field"
+        },
+        {
+          "after": "National Taiwan University (NTU)",
+          "before": null,
+          "field": "institution"
+        },
+        {
+          "after": "90",
+          "before": null,
+          "field": "priority"
+        },
+        {
+          "after": "NTU Computational Linguistics Specialized Program, NTU Chinese-English Translation Program",
+          "before": null,
+          "field": "programs"
+        }
+      ],
+      "key": "edu:national-taiwan-university-ntu",
+      "kind": "added",
+      "label": "National Taiwan University (NTU)",
+      "notion_page_id": "3b525b0d-3537-8103-9374-f259b9df04f8",
+      "section": "education"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Relevant Coursework (expected): Phonology, Computational Linguistics",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "Phonology, Computational Linguistics",
+          "before": null,
+          "field": "coursework"
+        },
+        {
+          "after": "Master of Arts",
+          "before": null,
+          "field": "degree"
+        },
+        {
+          "after": "2028-06-30",
+          "before": null,
+          "field": "end"
+        },
+        {
+          "after": "yes",
+          "before": null,
+          "field": "expected"
+        },
+        {
+          "after": "Linguistics",
+          "before": null,
+          "field": "field"
+        },
+        {
+          "after": "National Yang Ming Chiao Tung University (NYCU)",
+          "before": null,
+          "field": "institution"
+        },
+        {
+          "after": "100",
+          "before": null,
+          "field": "priority"
+        }
+      ],
+      "key": "edu:national-yang-ming-chiao-tung-university-nycu",
+      "kind": "added",
+      "label": "National Yang Ming Chiao Tung University (NYCU)",
+      "notion_page_id": "3b525b0d-3537-81e9-896b-ed7f19bb7487",
+      "section": "education"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Optimized AI News agent orchestration logic, data ETL, LINE integration and AWS deploy architecture., Built a recording-ASR-based BRD auto-revising agent with human-in-the-loop audit., Deployed a speech-driven form-filling service using streaming LLM on AWS for enterprise usage.",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "yes",
+          "before": null,
+          "field": "highlight"
+        },
+        {
+          "after": "Taipei, Taiwan",
+          "before": null,
+          "field": "location"
+        },
+        {
+          "after": "Cathay Financial Holdings — DDT AI",
+          "before": null,
+          "field": "organization"
+        },
+        {
+          "after": "100",
+          "before": null,
+          "field": "priority"
+        },
+        {
+          "after": "ML/AI Engineer Intern",
+          "before": null,
+          "field": "role"
+        },
+        {
+          "after": "2026-02-01",
+          "before": null,
+          "field": "start"
+        },
+        {
+          "after": "LLM, AWS, LangGraph, ETL, Slack, LINE",
+          "before": null,
+          "field": "tags"
+        },
+        {
+          "after": "Internship",
+          "before": null,
+          "field": "type"
+        }
+      ],
+      "key": "exp:cathay-financial-holdings-ddt-ai:2026-02",
+      "kind": "added",
+      "label": "Cathay Financial Holdings — DDT AI",
+      "notion_page_id": "3b525b0d-3537-8135-a2e4-da7824d25dd3",
+      "section": "experiences"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Designed perception experiment schema, prepared stimuli, and analyzed data for non-moraic schwa stress-bearing naturalness., Surveyed artificial-learning-experiment related phonology papers and prepared experiment stimuli using Praat and PsychoPy.",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "2026-06-30",
+          "before": null,
+          "field": "end"
+        },
+        {
+          "after": "Taipei, Taiwan",
+          "before": null,
+          "field": "location"
+        },
+        {
+          "after": "National Taiwan University",
+          "before": null,
+          "field": "organization"
+        },
+        {
+          "after": "90",
+          "before": null,
+          "field": "priority"
+        },
+        {
+          "after": "Research Assistant — Prof. Shu-hao Shih",
+          "before": null,
+          "field": "role"
+        },
+        {
+          "after": "2024-06-01",
+          "before": null,
+          "field": "start"
+        },
+        {
+          "after": "Phonology, NLP",
+          "before": null,
+          "field": "tags"
+        },
+        {
+          "after": "RA",
+          "before": null,
+          "field": "type"
+        }
+      ],
+      "key": "exp:national-taiwan-university:2024-06",
+      "kind": "added",
+      "label": "National Taiwan University",
+      "notion_page_id": "3b525b0d-3537-8136-9ea1-cf9573136374",
+      "section": "experiences"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Architected a LINE LIFF App career counseling chatbot with an n8n-based RPA workflow and managed user data with Supabase., Supported Enterprise Cloud Platform education courses as technical support.",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "2025-08-31",
+          "before": null,
+          "field": "end"
+        },
+        {
+          "after": "New Taipei City, Taiwan",
+          "before": null,
+          "field": "location"
+        },
+        {
+          "after": "Taiwan AI Academy (AIA)",
+          "before": null,
+          "field": "organization"
+        },
+        {
+          "after": "80",
+          "before": null,
+          "field": "priority"
+        },
+        {
+          "after": "AI Developer & Technical Support Summer Intern",
+          "before": null,
+          "field": "role"
+        },
+        {
+          "after": "2025-06-01",
+          "before": null,
+          "field": "start"
+        },
+        {
+          "after": "LINE, Frontend",
+          "before": null,
+          "field": "tags"
+        },
+        {
+          "after": "Internship",
+          "before": null,
+          "field": "type"
+        }
+      ],
+      "key": "exp:taiwan-ai-academy-aia:2025-06",
+      "kind": "added",
+      "label": "Taiwan AI Academy (AIA)",
+      "notion_page_id": "3b525b0d-3537-8152-bd96-f1fe85f96b33",
+      "section": "experiences"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Cathay Financial Holdings — DDT AI",
+          "before": null,
+          "field": "affiliation"
+        },
+        {
+          "after": "Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace); BU Agent serves as the BU's single entry point (two modes) to draft v1.0 BRD, then hands off structured deliverables to the downstream BA Agent., Explore mode: 5-stage question bank (diverge → converge → challenge) with a live 5-dimension rubric workspace; emits a dual handoff (JSON + 200–400-word paragraph) that auto-transitions to Consult, compressing ideation to 5–10 min., Consult mode: Step 1 auto-drafts the BRD outline from per-BU YAML templates, tagging sections auto_filled / needs_round2 / placeholder; Step 2 interviews only needs_round2 with live-preview inline edit, keeping BU interview time to 20–30 min., Outputs v1.0 BRD + summary.json + full conversation_trace + flag_for_ba_review list; handoff notifies the BA Agent for review.",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "Cathay Financial Holdings, DDT AI",
+          "before": null,
+          "field": "context"
+        },
+        {
+          "after": "2026-05-01",
+          "before": null,
+          "field": "date"
+        },
+        {
+          "after": "yes",
+          "before": null,
+          "field": "highlight"
+        },
+        {
+          "after": "BU Agent — Web-Based Two-Mode BRD Co-Drafting Assistant",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "90",
+          "before": null,
+          "field": "priority"
+        },
+        {
+          "after": "LLM, LangGraph, Frontend",
+          "before": null,
+          "field": "tags"
+        }
+      ],
+      "key": "proj:bu-agent-web-based-two-mode-brd-co-drafting-assistant",
+      "kind": "added",
+      "label": "BU Agent — Web-Based Two-Mode BRD Co-Drafting Assistant",
+      "notion_page_id": "3b525b0d-3537-810f-a296-d218618fde1d",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Cathay Financial Holdings — DDT AI",
+          "before": null,
+          "field": "affiliation"
+        },
+        {
+          "after": "Built an internal AI research report query assistant using a four-layer architecture (Interface / Application / Data / External Services)., Designed a three-scenario classification system (LLM intent detection + Python state machine) for intelligent routing across explicit, fuzzy, and out-of-scope queries., Implemented asynchronous Lambda self-invocation to overcome LINE Webhook's 1-second timeout, supporting 5–15 second LLM inference + RAG retrieval pipelines., Built a full ETL pipeline (Google Sheets → Bedrock Embedding → OpenSearch) with multi-dimensional filtering by topic, source, date, and subscription tier.",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "Cathay Financial Holdings, DDT AI",
+          "before": null,
+          "field": "context"
+        },
+        {
+          "after": "2026-03-01",
+          "before": null,
+          "field": "date"
+        },
+        {
+          "after": "yes",
+          "before": null,
+          "field": "highlight"
+        },
+        {
+          "after": "AI News Agent — Three-Scenario Routing Chatbot",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "100",
+          "before": null,
+          "field": "priority"
+        },
+        {
+          "after": "LLM, RAG, AWS, ETL, LINE",
+          "before": null,
+          "field": "tags"
+        }
+      ],
+      "key": "proj:ai-news-agent-three-scenario-routing-chatbot",
+      "kind": "added",
+      "label": "AI News Agent — Three-Scenario Routing Chatbot",
+      "notion_page_id": "3b525b0d-3537-8131-94fc-e5ea563f818f",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "National Taiwan University",
+          "before": null,
+          "field": "affiliation"
+        },
+        {
+          "after": "Developed and presented the \"Self-Discover-NLI\" prompt engineering framework, adapting the three-step Self-Discover pipeline (SELECT → ADAPT → APPLY) specifically for Natural Language Inference (NLI) tasks., Conducted systematic experiments on the IMPPRES dataset (95 tasks per trigger type), evaluating GPT-4o's handling of clefts, conditionals, modals, and other linguistic triggers., Achieved ~10% overall accuracy improvement; performed in-depth error analysis identifying systematic model weaknesses.",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "ROCLING Conference 2025",
+          "before": null,
+          "field": "context"
+        },
+        {
+          "after": "2025-10-01",
+          "before": null,
+          "field": "date"
+        },
+        {
+          "after": "yes",
+          "before": null,
+          "field": "highlight"
+        },
+        {
+          "after": "LLM Reasoning Research — Self-Discover-NLI",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "95",
+          "before": null,
+          "field": "priority"
+        },
+        {
+          "after": "LLM, NLP, Prompt Engineering",
+          "before": null,
+          "field": "tags"
+        }
+      ],
+      "key": "proj:llm-reasoning-research-self-discover-nli",
+      "kind": "added",
+      "label": "LLM Reasoning Research — Self-Discover-NLI",
+      "notion_page_id": "3b525b0d-3537-81a2-bff7-fce57faffe06",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Certificates",
+          "before": null,
+          "field": "category"
+        },
+        {
+          "after": "Listening and Reading 985, Speaking 180, Writing 170",
+          "before": null,
+          "field": "detail"
+        },
+        {
+          "after": "TOEIC",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "100",
+          "before": null,
+          "field": "priority"
+        }
+      ],
+      "key": "skill:Certificates:toeic",
+      "kind": "added",
+      "label": "TOEIC",
+      "notion_page_id": "3b525b0d-3537-811b-b5d4-ceda43ab63ad",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Cloud & Infra",
+          "before": null,
+          "field": "category"
+        },
+        {
+          "after": "Lambda, Bedrock, OpenSearch",
+          "before": null,
+          "field": "detail"
+        },
+        {
+          "after": "AWS",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "100",
+          "before": null,
+          "field": "priority"
+        }
+      ],
+      "key": "skill:Cloud & Infra:aws",
+      "kind": "added",
+      "label": "AWS",
+      "notion_page_id": "3b525b0d-3537-8130-a8d6-e99fe1e61ace",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Frameworks",
+          "before": null,
+          "field": "category"
+        },
+        {
+          "after": "LangGraph",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "100",
+          "before": null,
+          "field": "priority"
+        }
+      ],
+      "key": "skill:Frameworks:langgraph",
+      "kind": "added",
+      "label": "LangGraph",
+      "notion_page_id": "3b525b0d-3537-8130-af5e-f81c7dc836cd",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Languages",
+          "before": null,
+          "field": "category"
+        },
+        {
+          "after": "Native",
+          "before": null,
+          "field": "detail"
+        },
+        {
+          "after": "Mandarin",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "100",
+          "before": null,
+          "field": "priority"
+        }
+      ],
+      "key": "skill:Languages:mandarin",
+      "kind": "added",
+      "label": "Mandarin",
+      "notion_page_id": "3b525b0d-3537-8161-84c9-e54d8bbb38b4",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Languages",
+          "before": null,
+          "field": "category"
+        },
+        {
+          "after": "Fluent",
+          "before": null,
+          "field": "detail"
+        },
+        {
+          "after": "English",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "90",
+          "before": null,
+          "field": "priority"
+        }
+      ],
+      "key": "skill:Languages:english",
+      "kind": "added",
+      "label": "English",
+      "notion_page_id": "3b525b0d-3537-816e-b731-d2060755d2a9",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Tools",
+          "before": null,
+          "field": "category"
+        },
+        {
+          "after": "Microsoft Office",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "80",
+          "before": null,
+          "field": "priority"
+        }
+      ],
+      "key": "skill:Tools:microsoft-office",
+      "kind": "added",
+      "label": "Microsoft Office",
+      "notion_page_id": "3b525b0d-3537-8180-8e07-d766d62fdbdc",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Programming",
+          "before": null,
+          "field": "category"
+        },
+        {
+          "after": "Python",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "100",
+          "before": null,
+          "field": "priority"
+        }
+      ],
+      "key": "skill:Programming:python",
+      "kind": "added",
+      "label": "Python",
+      "notion_page_id": "3b525b0d-3537-81cd-a843-cd788eabf8e2",
+      "section": "skills"
+    }
+  ],
+  "counts": {
+    "added": 16,
+    "modified": 0,
+    "removed": 0
+  },
+  "is_first_run": true
+}
