@@ -1,0 +1,270 @@
+{
+  "education": [
+    {
+      "bullets": [
+        "參與臺大計算語言學學程",
+        "參與臺大中英翻譯學程",
+        "修習課程：自然語言處理、計算語言學、音韻學、語意學"
+      ],
+      "confidence": "High",
+      "coursework": "NLP, Computational Linguistics, Phonology, Semantics",
+      "degree": "外國語文學系學士",
+      "end": "2026-06-30",
+      "expected": false,
+      "field": null,
+      "highlight": false,
+      "institution": "國立臺灣大學",
+      "notion_page_id": "3b525b0d-3537-8103-9374-f259b9df04f8",
+      "priority": 90,
+      "programs": [
+        "NTU Computational Linguistics Specialized Program",
+        "NTU Chinese-English Translation Program"
+      ],
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": null
+    },
+    {
+      "bullets": [
+        "預計修習課程：音韻學、計算語言學"
+      ],
+      "confidence": "High",
+      "coursework": "Phonology, Computational Linguistics",
+      "degree": "語言學碩士",
+      "end": "2028-06-30",
+      "expected": true,
+      "field": null,
+      "highlight": false,
+      "institution": "國立陽明交通大學",
+      "notion_page_id": "3b525b0d-3537-81e9-896b-ed7f19bb7487",
+      "priority": 100,
+      "programs": [],
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": null
+    }
+  ],
+  "experiences": [
+    {
+      "bullets": [
+        "優化 AI News agent 的編排邏輯、資料 ETL、LINE 整合與 AWS 部署架構。",
+        "打造以錄音 ASR 為基礎、具 human-in-the-loop 審核的 BRD 自動修訂 agent。",
+        "於 AWS 上以 streaming LLM 部署語音驅動的表單填寫服務，供企業內部使用。"
+      ],
+      "confidence": "High",
+      "end": null,
+      "highlight": true,
+      "location": "Taipei, Taiwan",
+      "notion_page_id": "3b525b0d-3537-8135-a2e4-da7824d25dd3",
+      "organization": "國泰金控 DDT AI",
+      "priority": 100,
+      "role": "ML/AI 工程師實習生",
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": "2026-02-01",
+      "tags": [
+        "LLM",
+        "AWS",
+        "LangGraph",
+        "ETL",
+        "Slack",
+        "LINE"
+      ],
+      "type": "Internship"
+    },
+    {
+      "bullets": [
+        "設計感知實驗架構、準備實驗刺激並分析非 mora 音節 schwa 負重音自然度資料。",
+        "回顧人工學習實驗相關音韻學文獻，並以 Praat 與 PsychoPy 製作實驗刺激。"
+      ],
+      "confidence": "High",
+      "end": "2026-06-30",
+      "highlight": false,
+      "location": "Taipei, Taiwan",
+      "notion_page_id": "3b525b0d-3537-8136-9ea1-cf9573136374",
+      "organization": "國立臺灣大學",
+      "priority": 90,
+      "role": "研究助理（石書豪教授）",
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": "2024-06-01",
+      "tags": [
+        "Phonology",
+        "NLP"
+      ],
+      "type": "RA"
+    },
+    {
+      "bullets": [
+        "以 n8n RPA 工作流架設 LINE LIFF 職涯諮詢聊天機器人，並以 Supabase 管理使用者資料。",
+        "擅任企業雲端平台教育課程的技術支援。"
+      ],
+      "confidence": "High",
+      "end": "2025-08-31",
+      "highlight": false,
+      "location": "New Taipei City, Taiwan",
+      "notion_page_id": "3b525b0d-3537-8152-bd96-f1fe85f96b33",
+      "organization": "台灣人工智慧學校（AIA）",
+      "priority": 80,
+      "role": "AI 開發與技術支援暑期實習生",
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": "2025-06-01",
+      "tags": [
+        "LINE",
+        "Frontend"
+      ],
+      "type": "Internship"
+    }
+  ],
+  "lang": "zh",
+  "profile": {
+    "email": "applegirlmabel@gmail.com",
+    "github": null,
+    "linkedin": null,
+    "name": "吳雨諠",
+    "phone": null,
+    "summary": null,
+    "website": null
+  },
+  "projects": [
+    {
+      "affiliation": "Cathay Financial Holdings — DDT AI",
+      "bullets": [
+        "以 LangGraph + PostgresSaver 打造內部網頁應用，採分屏佈局（對話 ↔ 模式感知工作區）；BU Agent 作為業務單位的單一入口（兩種模式）草擬 v1.0 BRD，再將結構化交付物交棒給下游 BA Agent。",
+        "Explore 模式：五階段題庫（發散 → 收斂 → 質疑）搭配即時五維度評分工作區；產出雙路交棒（JSON + 200–400 字段落）並自動轉入 Consult，將發想時間壓縮至 5–10 分鐘。",
+        "Consult 模式：第一步依各 BU 的 YAML 模板自動草擬 BRD 大綱，將節次標記為 auto_filled / needs_round2 / placeholder；第二步只訪談 needs_round2 節次並提供即時預覽的行內編輯，將訪談時間控制在 20–30 分鐘。",
+        "產出 v1.0 BRD、summary.json、完整 conversation_trace 與 flag_for_ba_review 清單，並於交棒時通知 BA Agent 審閱。"
+      ],
+      "confidence": "High",
+      "context": "Cathay Financial Holdings, DDT AI",
+      "date": "2026-05-01",
+      "highlight": true,
+      "name": "BU Agent — 雙模式 BRD 協作草擬助理（網頁版）",
+      "notion_page_id": "3b525b0d-3537-810f-a296-d218618fde1d",
+      "priority": 90,
+      "repo_url": null,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "tags": [
+        "LLM",
+        "LangGraph",
+        "Frontend"
+      ]
+    },
+    {
+      "affiliation": "Cathay Financial Holdings — DDT AI",
+      "bullets": [
+        "以四層架構（介面 / 應用 / 資料 / 外部服務）打造內部 AI 研究報告查詢助理。",
+        "設計三情境分類系統（LLM 意圖偵測 + Python 狀態機），對明確、模糊與超出範圍的提問進行智慧路由。",
+        "以 Lambda 非同步自呼叫突破 LINE Webhook 一秒逾時限制，支援 5–15 秒的 LLM 推論 + RAG 檢索流程。",
+        "建置完整 ETL 流程（Google Sheets → Bedrock Embedding → OpenSearch），並依主題、來源、日期與訂閱層級做多維度篩選。"
+      ],
+      "confidence": "High",
+      "context": "Cathay Financial Holdings, DDT AI",
+      "date": "2026-03-01",
+      "highlight": true,
+      "name": "AI News Agent — 三情境路由聊天機器人",
+      "notion_page_id": "3b525b0d-3537-8131-94fc-e5ea563f818f",
+      "priority": 100,
+      "repo_url": null,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "tags": [
+        "LLM",
+        "RAG",
+        "AWS",
+        "ETL",
+        "LINE"
+      ]
+    },
+    {
+      "affiliation": "National Taiwan University",
+      "bullets": [
+        "開發並發表「Self-Discover-NLI」prompt engineering 框架，將 Self-Discover 三步驟流程（SELECT → ADAPT → APPLY）重新設計以應用於自然語言推論（NLI）任務。",
+        "於 IMPPRES 資料集進行系統性實驗（每種觸發詞 95 個任務），評估 GPT-4o 對分裂句、條件句、情態詞等語言觸發詞的處理能力。",
+        "整體準確率提升約 10%；並透過深入誤差分析指出模型的系統性弱點。"
+      ],
+      "confidence": "High",
+      "context": "ROCLING Conference 2025",
+      "date": "2025-10-01",
+      "highlight": true,
+      "name": "LLM 推論研究 — Self-Discover-NLI",
+      "notion_page_id": "3b525b0d-3537-81a2-bff7-fce57faffe06",
+      "priority": 95,
+      "repo_url": null,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "tags": [
+        "LLM",
+        "NLP",
+        "Prompt Engineering"
+      ]
+    }
+  ],
+  "publications": [],
+  "skills": [
+    {
+      "category": "Certificates",
+      "confidence": "High",
+      "detail": "聽讀 985、口說 180、寫作 170",
+      "highlight": false,
+      "name": "多益",
+      "notion_page_id": "3b525b0d-3537-811b-b5d4-ceda43ab63ad",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Cloud & Infra",
+      "confidence": "High",
+      "detail": "Lambda、Bedrock、OpenSearch",
+      "highlight": false,
+      "name": "AWS",
+      "notion_page_id": "3b525b0d-3537-8130-a8d6-e99fe1e61ace",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Frameworks",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "LangGraph",
+      "notion_page_id": "3b525b0d-3537-8130-af5e-f81c7dc836cd",
+      "priority": 100,
+      "source": "bu_agent_overview.md"
+    },
+    {
+      "category": "Languages",
+      "confidence": "High",
+      "detail": "母語",
+      "highlight": false,
+      "name": "中文",
+      "notion_page_id": "3b525b0d-3537-8161-84c9-e54d8bbb38b4",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Languages",
+      "confidence": "High",
+      "detail": "流利",
+      "highlight": false,
+      "name": "英文",
+      "notion_page_id": "3b525b0d-3537-816e-b731-d2060755d2a9",
+      "priority": 90,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Tools",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "Microsoft Office",
+      "notion_page_id": "3b525b0d-3537-8180-8e07-d766d62fdbdc",
+      "priority": 80,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Programming",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "Python",
+      "notion_page_id": "3b525b0d-3537-81cd-a843-cd788eabf8e2",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    }
+  ]
+}
