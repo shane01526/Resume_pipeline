@@ -52,9 +52,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Required for `cache-to: type=gha` below. Without it the build runs on the default
+      # `docker` driver, which cannot export a cache, and every push failed with
+      #   ERROR: failed to build: Cache export is not supported for the docker driver.
+      # This job had never once succeeded — so the LaTeX compile it exists to exercise was
+      # not actually being exercised in CI, which is the whole reason the job is here.
+      - uses: docker/setup-buildx-action@v3
+
       - name: Build the image
-        # Local layer cache, so an unchanged Dockerfile doesn't re-download Chromium and
-        # Tectonic on every push.
+        # Layer cache, so an unchanged Dockerfile doesn't re-download Chromium and Tectonic
+        # on every push.
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -74,12 +81,19 @@ jobs:
               echo "no font carries U+25AA — bullet markers would render as tofu"; exit 1; }
           '
 
-      - name: Render all six artifacts under a 512MB limit
-        # The memory limit is itself the assertion: it is what makes a free-tier deployment
-        # viable, so a renderer that suddenly needs more should fail CI, not production.
+      - name: Compile the LaTeX resume in the image
+        # Renamed from "Render all six artifacts under a 512MB limit", which described
+        # neither what runs nor what it proves: these two files exercise the LaTeX path
+        # (plus its golden checks), not a full six-artifact render.
+        #
+        # The 512m cap is a floor-guard against a renderer that suddenly needs far more —
+        # it deliberately does NOT model Cloud Run. Cloud Run counts page cache toward the
+        # limit and killed a real run at 1024 MiB, while the same render finishes inside a
+        # 512m cgroup here because the kernel reclaims that cache instead. The deployed
+        # service therefore runs at 2Gi; see scripts/deploy_cloudrun.sh for the measurement.
         #
         # pytest is installed at runtime rather than baked into the image — it is a dev
-        # dependency, and shipping it to production would be wrong for the sake of CI.
+        # dependency, and shipping it to production for CI's sake would be wrong.
         run: |
           docker run --rm --memory=512m \
             -v "$PWD/tests:/app/tests:ro" \
