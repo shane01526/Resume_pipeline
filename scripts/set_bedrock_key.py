@@ -41,6 +41,81 @@ def read_key(raw: str | None) -> str:
     return getpass.getpass(f"Bedrock API key ({KEY_PREFIX}...): ").strip()
 
 
+def write_dotenv(key: str) -> bool:
+    """Update BEDROCK_API_KEY in `.env`. Returns whether the file was changed.
+
+    Not cosmetic. `.env` is what `deploy_cloudrun.sh` seeds the container's env var from, so
+    a stale value there means every future deploy ships a dead key — while local runs keep
+    working from the shell's AWS_BEARER_TOKEN_BEDROCK or the /tmp cache. That divergence
+    caused two wrong diagnoses in one day: the deployed service returned
+    "Signature expired: 20260813T143251Z" from the key in `.env` while the same command
+    succeeded locally against a newer key the shell happened to hold.
+
+    Rotating now updates all three places a key can live: this process, the cache file, and
+    the deploy seed.
+    """
+    path = Path(".env")
+    if not path.is_file():
+        print("local: no .env found - skipping the deploy seed")
+        return False
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    line = f"BEDROCK_API_KEY={key}"
+    if any(existing.startswith("BEDROCK_API_KEY=") for existing in lines):
+        if line in lines:
+            return False
+        lines = [line if e.startswith("BEDROCK_API_KEY=") else e for e in lines]
+    else:
+        lines.append(line)
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return True
+
+
+def _warn_on_divergence() -> None:
+    """Say so when the three places a key can live disagree.
+
+    A key can sit in `.env` (the deploy seed), in the shell as AWS_BEARER_TOKEN_BEDROCK, and
+    in the cache file — and the resolution order differs from what deployment uses. When they
+    diverge you get the worst possible symptom: local calls succeed while the deployed
+    service returns "Signature expired", and both report the same last four characters
+    because the suffix is not distinctive. Printing lengths makes them distinguishable.
+    """
+    import os
+
+    from pipeline.llm_key import current_key
+
+    settings = get_settings()
+    resolved = current_key(settings)
+    values = {
+        "in effect": resolved.key if resolved else "",
+        "shell AWS_BEARER_TOKEN_BEDROCK": os.environ.get("AWS_BEARER_TOKEN_BEDROCK", ""),
+        ".env BEDROCK_API_KEY": _dotenv_key(),
+    }
+    present = {name: value for name, value in values.items() if value}
+    if len({value for value in present.values()}) <= 1:
+        return
+
+    print("\n  WARNING: these do not all hold the same key")
+    for name, value in present.items():
+        print(f"    {name:32} ...{value[-6:]}  ({len(value)} chars)")
+    print(
+        "  `.env` is what the next deploy seeds into the container, so a stale value there\n"
+        "  means local runs keep working while the deployed service gets a dead key.\n"
+        "  Fix: python scripts/set_bedrock_key.py <the-key-you-want>"
+    )
+
+
+def _dotenv_key() -> str:
+    path = Path(".env")
+    if not path.is_file():
+        return ""
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("BEDROCK_API_KEY="):
+            return line.split("=", 1)[1].strip()
+    return ""
+
+
 def push_remote(key: str, base_url: str, token: str, expires_at: datetime | None) -> bool:
     """Send the key to the deployed service. Returns True on success."""
     url = f"{base_url}/admin/llm-key"
@@ -77,6 +152,7 @@ def push_remote(key: str, base_url: str, token: str, expires_at: datetime | None
 def show_status(settings: object, base_url: str, token: str) -> int:
     print("local:")
     print(f"  {json.dumps(status(settings), indent=2, default=str)}")  # type: ignore[arg-type]
+    _warn_on_divergence()
 
     if not base_url or "localhost" in base_url:
         print("\nremote: PUBLIC_BASE_URL is unset or local - skipping")
@@ -141,6 +217,8 @@ def main() -> int:
         print(f"local: OK installed (...{stored.key[-4:]})")
         if expires_at:
             print(f"       expires {expires_at:%Y-%m-%d %H:%M} UTC")
+        if write_dotenv(key):
+            print("       .env updated (this is what the next deploy seeds)")
     else:
         # Still validate the format before sending it anywhere.
         if not key.startswith(KEY_PREFIXES):
