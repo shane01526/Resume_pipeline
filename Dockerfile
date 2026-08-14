@@ -37,9 +37,31 @@ RUN curl -fsSL \
 # Warm the package cache at build time. Without this the first real render pays a
 # multi-second download for fontspec, xeCJK, geometry, and friends — and fails outright
 # if the container has no egress.
+#
+# Retried with backoff, because the package host rate-limits. A Cloud Build deploy failed
+# with a wall of
+#   warning: failure requesting "pd1enc.def" ... 429 Too Many Requests
+#   error: hyperref.sty:709: ! LaTeX Error: File `pd1enc.def' not found.
+# after several image builds in one afternoon — CI now builds this image on every push too,
+# so the two compete. Nothing was wrong with the image; the download was throttled.
+#
+# Still fatal if every attempt fails: an image whose cache is incomplete would download at
+# render time instead, on a service with a 900s request budget and the same rate limit.
 COPY docker/warmup.tex /tmp/warmup/warmup.tex
 RUN cd /tmp/warmup \
-    && TECTONIC_CACHE_DIR=/opt/tectonic-cache tectonic --chatter minimal warmup.tex \
+    && for attempt in 1 2 3 4 5; do \
+        if TECTONIC_CACHE_DIR=/opt/tectonic-cache tectonic --chatter minimal warmup.tex; then \
+            echo "tectonic warmup succeeded on attempt ${attempt}"; \
+            break; \
+        fi; \
+        if [ "${attempt}" = "5" ]; then \
+            echo "tectonic warmup failed after 5 attempts" >&2; \
+            exit 1; \
+        fi; \
+        delay=$((attempt * 20)); \
+        echo "tectonic warmup attempt ${attempt} failed; retrying in ${delay}s" >&2; \
+        sleep "${delay}"; \
+    done \
     && rm -rf /tmp/warmup
 
 # --- runtime ----------------------------------------------------------------
