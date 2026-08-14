@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>voice-notion — 部署與選型架構說明書</title>
+<style>
+  :root{
+    --ink:#1a2233; --muted:#5b6577; --line:#e2e6ee; --bg:#f6f8fb;
+    --card:#ffffff; --accent:#1f6feb; --accent-d:#14315e;
+    --code-bg:#0f1729; --code-ink:#d7e0f4;
+    --ok:#1a7f4b; --warn:#b25e00; --bad:#b3261e;
+    --chip:#eef3fb;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,pre,kbd{font-family:"JetBrains Mono","Cascadia Code",Consolas,monospace}
+  .layout{display:flex; max-width:1280px; margin:0 auto; gap:0}
+  /* ── side nav ── */
+  nav.toc{
+    position:sticky; top:0; align-self:flex-start; width:280px; min-width:280px;
+    height:100vh; overflow-y:auto; padding:28px 18px 60px; background:var(--card);
+    border-right:1px solid var(--line);
+  }
+  nav.toc h2{font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:22px 0 8px}
+  nav.toc .brand{font-size:18px; font-weight:800; color:var(--accent-d); line-height:1.3}
+  nav.toc .brand small{display:block; font-weight:500; font-size:12px; color:var(--muted); margin-top:4px}
+  nav.toc ol{list-style:none; margin:0; padding:0; counter-reset:s}
+  nav.toc ol li{counter-increment:s; margin:2px 0}
+  nav.toc ol li a{display:block; padding:5px 10px; border-radius:7px; color:var(--ink); font-size:14.5px}
+  nav.toc ol li a::before{content:counter(s) ". "; color:var(--muted); font-variant-numeric:tabular-nums}
+  nav.toc ol li a:hover{background:var(--chip); text-decoration:none}
+  /* ── main ── */
+  main{flex:1; padding:40px 52px 120px; min-width:0}
+  header.hero{
+    background:linear-gradient(135deg,var(--accent-d),#2657a8); color:#fff;
+    border-radius:16px; padding:38px 40px; margin-bottom:34px;
+  }
+  header.hero h1{margin:0 0 8px; font-size:30px; letter-spacing:-.01em}
+  header.hero p.lede{margin:0; font-size:17px; opacity:.95; max-width:70ch}
+  header.hero .meta{margin-top:18px; display:flex; flex-wrap:wrap; gap:8px}
+  header.hero .meta span{background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25);
+    padding:4px 11px; border-radius:999px; font-size:12.5px}
+  section{background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:30px 34px; margin:0 0 26px; scroll-margin-top:20px}
+  section > h2{margin:0 0 6px; font-size:23px; color:var(--accent-d);
+    padding-bottom:10px; border-bottom:2px solid var(--line)}
+  section > h2 .num{color:var(--accent); font-weight:800; margin-right:10px}
+  h3{font-size:18px; margin:26px 0 8px; color:var(--ink)}
+  h4{font-size:15.5px; margin:18px 0 6px; color:var(--accent-d)}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0; padding-left:24px}
+  li{margin:5px 0}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px; overflow:hidden}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top}
+  th{background:#eef2f8; font-weight:700; color:var(--accent-d)}
+  tbody tr:nth-child(even){background:#fafbfe}
+  td code, th code, p code, li code{background:var(--chip); color:#0b3d91;
+    padding:1px 6px; border-radius:5px; font-size:13px; word-break:break-word}
+  pre{background:var(--code-bg); color:var(--code-ink); border-radius:11px;
+    padding:18px 20px; overflow-x:auto; font-size:13.5px; line-height:1.55; margin:14px 0}
+  pre code{background:none; color:inherit; padding:0}
+  .why{border-left:4px solid var(--accent); background:#f0f6ff; padding:12px 16px;
+    border-radius:0 10px 10px 0; margin:14px 0}
+  .why b{color:var(--accent-d)}
+  .note{border-left:4px solid var(--warn); background:#fff8ef; padding:12px 16px;
+    border-radius:0 10px 10px 0; margin:14px 0}
+  .callout-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin:16px 0}
+  .card{border:1px solid var(--line); border-radius:11px; padding:16px 18px; background:#fbfcfe}
+  .card h4{margin:0 0 6px}
+  .tag{display:inline-block; font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:999px;
+    vertical-align:middle}
+  .tag.ok{background:#e5f5ec; color:var(--ok)}
+  .tag.bad{background:#fdeceb; color:var(--bad)}
+  .tag.warn{background:#fdf1e2; color:var(--warn)}
+  .tag.now{background:#e7effc; color:var(--accent-d)}
+  .pick{background:#e5f5ec}
+  .region{font-weight:700}
+  .region.us{color:#7a3fb0}
+  .region.tk{color:#1a7f4b}
+  footer{color:var(--muted); font-size:13px; text-align:center; padding:30px 0 10px}
+  .kbd{background:#fff; border:1px solid var(--line); border-bottom-width:2px; border-radius:6px;
+    padding:1px 7px; font-size:12.5px}
+  @media (max-width:960px){
+    nav.toc{display:none} main{padding:24px 18px 80px}
+    section{padding:22px 18px}
+  }
+  @media print{
+    nav.toc{display:none} body{background:#fff} main{padding:0}
+    section,header.hero{break-inside:avoid; box-shadow:none}
+    header.hero{background:var(--accent-d)!important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    .arch,.flow{break-inside:avoid}
+    .node,.lane,.step{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  }
+
+  /* ══ 架構圖 / 流程圖（純 CSS，無外部依賴） ══ */
+  .arch{border:1px solid var(--line); border-radius:12px; background:#fbfcfe; padding:22px 20px; margin:16px 0}
+  .node{border:1.5px solid var(--line); border-radius:10px; background:#fff; padding:10px 14px; text-align:center;
+    font-size:13.5px; line-height:1.4; box-shadow:0 1px 2px rgba(20,40,80,.05)}
+  .node .t{font-weight:700; color:var(--accent-d); display:block; font-size:14px}
+  .node .s{color:var(--muted); font-size:12px; display:block; margin-top:2px}
+  .node .s code{font-size:11.5px}
+  .node.ext{background:#eef2f8; border-color:#cdd7e6}
+  .node.web{border-color:#8fb3ef; background:#f2f7ff}
+  .node.worker{border-color:#8fd6b0; background:#f1fbf5}
+  .node.data{border-color:#e6c98f; background:#fffaf0}
+  .node.ai{border-color:#c9a6e6; background:#faf4ff}
+  .node.sched{border-color:#e6a6b8; background:#fff2f5}
+  .arrow-v{display:flex; flex-direction:column; align-items:center; color:var(--accent); font-size:11px; margin:2px 0}
+  .arrow-v .line{width:2px; height:16px; background:var(--accent)}
+  .arrow-v .head{margin-top:-3px; line-height:1}
+  .arrow-v .lbl{color:var(--muted); font-size:11px; margin:2px 0}
+  .band{display:flex; align-items:center; gap:6px; margin:12px 0; color:var(--muted); font-size:12px}
+  .band::before,.band::after{content:""; flex:1; height:1px; background:var(--line)}
+  .task-box{border:2px dashed #9db4d6; border-radius:12px; padding:14px; background:#f7faff; margin:4px auto; max-width:640px}
+  .task-box .task-hd{text-align:center; font-size:12px; color:var(--accent-d); font-weight:700; margin-bottom:10px}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  .backend-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:6px}
+  /* 流程圖（水平步驟） */
+  .flow{border:1px solid var(--line); border-radius:12px; background:#fbfcfe; padding:20px; margin:16px 0}
+  .flow .title{font-weight:700; color:var(--accent-d); font-size:14px; margin-bottom:12px}
+  .chain{display:flex; flex-wrap:wrap; align-items:stretch; gap:0}
+  .step{border:1.5px solid var(--line); border-radius:9px; background:#fff; padding:8px 12px; font-size:13px;
+    display:flex; flex-direction:column; justify-content:center; min-width:0}
+  .step .k{font-weight:700; color:var(--accent-d); font-size:12.5px}
+  .step .d{color:var(--muted); font-size:11.5px}
+  .step.entry{border-color:#8fb3ef; background:#f2f7ff}
+  .step.q{border-color:#e6c98f; background:#fffaf0}
+  .step.wk{border-color:#8fd6b0; background:#f1fbf5}
+  .step.out{border-color:#c9a6e6; background:#faf4ff}
+  .conn{display:flex; align-items:center; padding:0 4px; color:var(--accent); font-weight:700; font-size:16px}
+  .conn small{display:block; font-size:10px; color:var(--muted); font-weight:400; text-align:center}
+  .branch{margin:10px 0 0 26px; border-left:2px solid var(--line); padding-left:16px}
+  .branch .b{font-size:12.5px; color:var(--ink); margin:6px 0; position:relative}
+  .branch .b::before{content:"└─"; color:var(--muted); margin-right:6px}
+  @media (max-width:680px){ .two-col,.chain{grid-template-columns:1fr; flex-direction:column} .conn{transform:rotate(90deg); padding:4px 0} .duo{grid-template-columns:1fr} }
+
+  /* ══ 視覺標記 / 職責分工小圖 ══ */
+  .mark{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
+    border-radius:50%; font-size:12px; font-weight:800; margin-right:6px; vertical-align:-3px; color:#fff}
+  .mark.yes{background:var(--ok)}
+  .mark.no{background:var(--bad)}
+  .mark.mid{background:var(--warn)}
+  .duo{display:grid; grid-template-columns:1fr auto 1fr; gap:0; align-items:stretch; margin:14px 0}
+  .duo .half{border:1.5px solid var(--line); border-radius:11px; background:#fff; padding:14px 16px; text-align:center}
+  .duo .half.a{border-color:#8fd6b0; background:#f1fbf5}
+  .duo .half.b{border-color:#8fb3ef; background:#f2f7ff}
+  .duo .half .t{font-weight:800; color:var(--accent-d); display:block; font-size:15px}
+  .duo .half .s{color:var(--muted); font-size:12.5px; display:block; margin-top:4px}
+  .duo .plus{display:flex; align-items:center; padding:0 14px; color:var(--accent); font-size:22px; font-weight:800}
+  .step.proc{border-color:#c9a6e6; background:#faf4ff}
+  .step.done{border-color:#8fd6b0; background:#f1fbf5}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ══════════════════════ TOC ══════════════════════ -->
+<nav class="toc">
+  <div class="brand">voice-notion<small>部署與選型架構說明書</small></div>
+  <h2>目錄</h2>
+  <ol>
+    <li><a href="#s1">摘要（TL;DR）</a></li>
+    <li><a href="#s2">系統概觀</a></li>
+    <li><a href="#s3">ECS / Fargate 與 web／worker</a></li>
+    <li><a href="#s4">架構選型比較</a></li>
+    <li><a href="#s5">當前架構逐元件原理</a></li>
+    <li><a href="#s6">跨區設計</a></li>
+    <li><a href="#s7">程式設計原理</a></li>
+    <li><a href="#s8">架構演進史與踩坑</a></li>
+    <li><a href="#s9">成本與維運</a></li>
+    <li><a href="#s10">附錄</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>voice-notion — 部署與選型架構說明書</h1>
+  <p class="lede">一個把 <b>Slack 語音／文字訊息</b>轉成 <b>Notion 頁面與任務</b>、並每日自動統整站會的機器人；本文件說明它在 AWS 上的架構選型、每一項技術決策的原因、以及從初版到當前狀態的完整演進。</p>
+  <div class="meta">
+    <span>ECS Fargate · web + worker</span>
+    <span>DynamoDB · SQS · EventBridge Rule</span>
+    <span>Amazon Transcribe（STT）</span>
+    <span>Bedrock Claude Opus 4.8（文字）</span>
+    <span>region：ap-northeast-1 + us-east-1</span>
+    <span>task-def rev9</span>
+  </div>
+</header>
+
+<!-- ══════════════════════ 1. TL;DR ══════════════════════ -->
+<section id="s1">
+  <h2><span class="num">1</span>摘要（TL;DR）</h2>
+  <p>voice-notion 原本是單機 Next.js 服務（狀態放記憶體、背景工作 fire-and-forget）。為了在雲端能<strong>水平擴容、滾動更新不掉資料、符合金控資安基準</strong>，重構為以 <b>ECS Fargate</b> 為核心、佐以 DynamoDB / SQS / EventBridge 的雲原生架構，AI 能力全部改走 AWS 託管服務（<b>無 OpenAI 依賴</b>）。</p>
+
+  <h3>當前部署重點</h3>
+  <table>
+    <thead><tr><th>面向</th><th>當前做法</th></tr></thead>
+    <tbody>
+      <tr><td>運算</td><td>ECS Fargate 1 task、<b>web + worker 兩容器</b>（同一 image、不同啟動指令）、<b>私有子網雙 AZ</b>、<code>assignPublicIp=DISABLED</code>、出網走 NAT、<code>readonlyRootFilesystem</code> + ephemeral volumes</td></tr>
+      <tr><td>入口</td><td><b>沿用既有 <code>aaron-dev</code> ALB</b>（不自建）：建 Target Group + 在 443 listener 加 host-based rule（<code>notionvoice.ai-tech.ninja</code>）</td></tr>
+      <tr><td>狀態 / 佇列</td><td>DynamoDB single-table（TTL）、SQS 主佇列 + DLQ</td></tr>
+      <tr><td>語音轉文字（STT）</td><td><b>Amazon Transcribe streaming</b>（**多語言 zh-TW+en-US 自動辨識** + custom vocabulary，<span class="region tk">ap-northeast-1</span>，免 model access，IAM <code>transcribe:StartStreamTranscription</code>）</td></tr>
+      <tr><td>文字推理</td><td><b>Bedrock Claude Opus 4.8</b>（<span class="region us">us-east-1</span>，Mantle client，裸前綴 model id，IAM <code>bedrock:InvokeModel</code> + <code>bedrock-mantle:*</code>）</td></tr>
+      <tr><td>機密</td><td>SSM Parameter Store SecureString（Notion / Slack / CRON_SECRET），task 啟動注入</td></tr>
+      <tr><td>站會排程</td><td><b>經典 EventBridge Rule</b>（<code>cron(40 1 ? * MON-FRI *)</code> UTC = 台北 09:40）→ cron endpoint 入 SQS + 立即 200 → worker 背景統整；target retry=0</td></tr>
+    </tbody>
+  </table>
+  <div class="why"><b>為什麼要看這份文件？</b>每一個「選了什麼」背後都有一個「不選別的」的原因——多數不是理論偏好，而是在真實帳號上撞到 SCP、Mantle 端點、Security Hub、EventBridge timeout 後<strong>被現實逼出來的決策</strong>。第 4、8 章即專講這些取捨。</p>
+</section>
+
+<!-- ══════════════════════ 2. 系統概觀 ══════════════════════ -->
+<section id="s2">
+  <h2><span class="num">2</span>系統概觀</h2>
+  <p>使用者在 Slack 頻道 <b>@mention 機器人並附上語音或文字</b>，機器人把它變成一張可確認的 Notion 卡片；另每天早上自動統整站會。使用者旅程如下：</p>
+  <div class="flow">
+    <div class="title">使用者旅程（User Journey）</div>
+    <div class="chain">
+      <div class="step entry"><span class="k">Slack 語音／文字</span><span class="d">@mention 機器人</span></div>
+      <div class="conn">→</div>
+      <div class="step wk"><span class="k">ffmpeg + Transcribe</span><span class="d">語音轉逐字稿</span></div>
+      <div class="conn">→</div>
+      <div class="step proc"><span class="k">Opus 4.8 解析</span><span class="d">抽任務／會議欄位</span></div>
+      <div class="conn">→</div>
+      <div class="step"><span class="k">貼草稿卡</span><span class="d">可確認 / 編輯</span></div>
+      <div class="conn">→<small>使用者按確認</small></div>
+      <div class="step done"><span class="k">寫入 Notion</span><span class="d">建頁 + 回連結</span></div>
+    </div>
+    <div class="branch">
+      <div class="b"><b>每日 09:40（台北）</b>：EventBridge 自動觸發 → 統整當日站會 → 發文字摘要並建 Notion 頁（見下方站會鏈）</div>
+    </div>
+  </div>
+
+  <h3>元件關係圖</h3>
+  <div class="arch">
+    <!-- 入口 -->
+    <div style="max-width:520px;margin:0 auto">
+      <div class="node ext"><span class="t">Slack</span><span class="s">使用者 @mention + 語音／文字</span></div>
+      <div class="arrow-v"><span class="lbl">HTTPS 443</span><span class="line"></span><span class="head">▼</span></div>
+      <div class="node"><span class="t">aaron-dev ALB（既有）</span><span class="s">443 listener · host-rule <code>notionvoice.ai-tech.ninja</code> → 本 app Target Group</span></div>
+      <div class="arrow-v"><span class="lbl">私有子網（無 public IP）</span><span class="line"></span><span class="head">▼</span></div>
+    </div>
+
+    <!-- ECS task -->
+    <div class="task-box">
+      <div class="task-hd">ECS Service · 1 task · Fargate · 私有子網雙 AZ</div>
+      <div class="two-col">
+        <div class="node web">
+          <span class="t">container: web</span>
+          <span class="s">Next.js standalone <code>:3000</code> · readonly root<br>驗簽 → 入 SQS → 200 ack (&lt;3s)<br><code>/api/health</code> · <code>/api/cron/standup</code></span>
+        </div>
+        <div class="node worker">
+          <span class="t">container: worker</span>
+          <span class="s">long-poll SQS · readonly root<br>ffmpeg → Transcribe → Opus 4.8 → Notion<br>每 30s：草稿提醒 / 逾期 sweep</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="band">出網走 NAT gateway ↓　　入站一律經 ALB ↑</div>
+
+    <!-- 後端服務 -->
+    <div class="backend-grid">
+      <div class="node ai"><span class="t">Amazon Transcribe</span><span class="s"><span class="region tk">ap-northeast-1</span> · 語音轉文字 zh-TW</span></div>
+      <div class="node ai"><span class="t">Amazon Bedrock</span><span class="s"><span class="region us">us-east-1</span> · Claude Opus 4.8（Mantle）</span></div>
+      <div class="node data"><span class="t">DynamoDB</span><span class="s">single-table · on-demand · TTL<br>web + worker 共享狀態</span></div>
+      <div class="node data"><span class="t">SQS 主佇列 + DLQ</span><span class="s">web enqueue → worker 消費</span></div>
+      <div class="node sched"><span class="t">EventBridge Rule</span><span class="s">09:40 台北 · API destination + Bearer · retry=0 →<code>/api/cron/standup</code></span></div>
+      <div class="node ext"><span class="t">SSM Parameter Store</span><span class="s">SecureString → task 注入機密</span></div>
+      <div class="node ext"><span class="t">CloudWatch Logs</span><span class="s">兩容器 stdout / stderr</span></div>
+    </div>
+    <p style="text-align:center;color:var(--muted);font-size:12px;margin:12px 0 0">
+      認證：AI 與資料層皆走 ECS <b>task role</b>（SigV4），無 API key
+    </p>
+  </div>
+
+  <h3>請求生命週期</h3>
+  <p><b>語音 / Slash command / 按鈕互動</b>（三者同型）——web 只做「驗簽 + 入列 + 回 200」，重工作全丟給 worker：</p>
+  <div class="flow">
+    <div class="title">① 一般訊息鏈（event / command / interaction）</div>
+    <div class="chain">
+      <div class="step entry"><span class="k">Slack webhook</span><span class="d">web route</span></div>
+      <div class="conn">→</div>
+      <div class="step entry"><span class="k">驗簽 + 事件去重</span><span class="d">events 才需去重</span></div>
+      <div class="conn">→</div>
+      <div class="step q"><span class="k">enqueue(SQS)</span><span class="d">回 200 (&lt;3s)</span></div>
+      <div class="conn">→<small>long-poll</small></div>
+      <div class="step wk"><span class="k">worker dispatch(kind)</span><span class="d">依 kind 分流</span></div>
+    </div>
+    <div class="branch">
+      <div class="b"><b>event</b>：ffmpeg + Transcribe 轉錄／文字 → <code>processWithSkills</code> → 建草稿訊息</div>
+      <div class="b"><b>command</b>：<code>processTextCommand</code></div>
+      <div class="b"><b>interaction</b>：<code>claimDraft</code>（原子）→ <code>executeDraft</code> → 寫 Notion → <code>completeDraft</code></div>
+    </div>
+    <p style="color:var(--muted);font-size:12px;margin:10px 0 0">※ 本機未設 <code>SQS_QUEUE_URL</code> 時，web 就地 inline 處理（跳過佇列）。</p>
+  </div>
+
+  <p><b>每日站會</b>——排程觸發後同樣是「入列 + 立即回 200」，統整交給 worker 背景跑：</p>
+  <div class="flow">
+    <div class="title">② 站會統整鏈（standup）</div>
+    <div class="chain">
+      <div class="step out"><span class="k">EventBridge Rule</span><span class="d">09:40 台北 · Bearer</span></div>
+      <div class="conn">→</div>
+      <div class="step entry"><span class="k">GET /api/cron/standup</span><span class="d">驗 Bearer</span></div>
+      <div class="conn">→</div>
+      <div class="step q"><span class="k">enqueue（kind:standup）</span><span class="d">立即回 200</span></div>
+      <div class="conn">→<small>long-poll</small></div>
+      <div class="step wk"><span class="k">runStandupAggregation</span><span class="d">worker 背景</span></div>
+    </div>
+    <div class="branch">
+      <div class="b"><b>DynamoDB 有當日文字稿</b> → <code>aggregateStandup</code></div>
+      <div class="b"><b>沒有</b> → <code>recoverStandupFromSlack</code>（從 channel history 還原）→ <code>aggregateStandup</code></div>
+    </div>
+    <p style="color:var(--muted);font-size:12px;margin:10px 0 0">※ 「立即回 200 + 背景統整」是為避免 EventBridge 因同步超時而退避重試、重複發訊（見第 8 章）。</p>
+  </div>
+</section>
+
+<!-- ══════════════════════ 3. ECS / Fargate 與 web／worker ══════════════════════ -->
+<section id="s3">
+  <h2><span class="num">3</span>ECS / Fargate 與 web／worker（白話 + 設定）</h2>
+  <p>「ECS」「Fargate」常被綁在一起講，但其實是<strong>兩個不同層級</strong>的東西；而「web／worker」是<strong>本專案的設計</strong>。本章用白話講清楚各是什麼、以及本專案怎麼設定（值取自 <code>taskdef.json</code> rev9）。</p>
+
+  <div class="why"><b>一句比喻：</b>你要開餐廳出餐。<b>ECS 是店長</b>——決定幾個廚師上工、有人請假就補人、換菜單時怎麼無縫接手；<b>Fargate 是廚房＋瓦斯爐</b>——實際煮菜的地方，但你不用自己買爐、修爐、清爐。</div>
+
+  <h3>ECS 與 Fargate：兩個層級</h3>
+  <div class="duo">
+    <div class="half b"><span class="t">ECS</span><span class="s">編排 / 控制平面<br>本身不跑你的程式——負責「管理」：要跑幾份、掛了重啟、滾動更新、掛到 ALB</span></div>
+    <div class="plus">+</div>
+    <div class="half a"><span class="t">Fargate</span><span class="s">算力（Serverless Compute）<br>實際跑容器，你只說要多少 vCPU/記憶體，底層 VM／OS patch 全由 AWS 託管</span></div>
+  </div>
+  <p>ECS 也能搭配自管 EC2 當算力，本專案選 <b>ECS + Fargate</b> 以免管底層機器。</p>
+
+  <h4>ECS 負責的四件事</h4>
+  <table>
+    <thead><tr><th>職責</th><th>具體意思</th></tr></thead>
+    <tbody>
+      <tr><td>維持數量</td><td>你說「1 個 task 常駐」，ECS 就維持 1 個；少了自動補</td></tr>
+      <tr><td>健康自癒</td><td>container 崩潰 / task 死掉 → 自動拉新的起來</td></tr>
+      <tr><td>滾動更新</td><td>出新版時<b>先起新 task、健康後才關舊 task</b> → 零停機</td></tr>
+      <tr><td>掛載 ALB</td><td>告訴 ALB「流量往這個 task 的 <code>IP:3000</code> 送」</td></tr>
+    </tbody>
+  </table>
+
+  <h4>ECS 的名詞層層包起來</h4>
+  <div class="arch">
+    <div style="max-width:560px;margin:0 auto">
+      <div class="node ext"><span class="t">Cluster（叢集）</span><span class="s">邏輯群組，本專案 = <code>voice-notion</code></span></div>
+      <div class="arrow-v"><span class="line"></span><span class="head">▼</span></div>
+      <div class="node"><span class="t">Service（服務）</span><span class="s">「維持 N 個 task 常駐」的規則 · 掛 ALB · 滾動更新</span></div>
+      <div class="arrow-v"><span class="line"></span><span class="head">▼</span></div>
+      <div class="node web"><span class="t">Task（任務）</span><span class="s">依 <b>Task Definition（藍圖/食譜）</b>跑起來的實體 · 內含 1~N 個 container</span></div>
+      <div class="arrow-v"><span class="line"></span><span class="head">▼</span></div>
+      <div class="two-col">
+        <div class="node web"><span class="t">container: web</span><span class="s"><code>node server.js</code></span></div>
+        <div class="node worker"><span class="t">container: worker</span><span class="s"><code>node dist/worker.js</code></span></div>
+      </div>
+    </div>
+    <p style="text-align:center;color:var(--muted);font-size:12px;margin:12px 0 0">
+      <b>Task Definition</b> 是範本（藍圖），<b>Task</b> 是照藍圖跑起來的實體
+    </p>
+  </div>
+
+  <h3>web 與 worker：同 image、不同角色</h3>
+  <p>本專案一個 Fargate task 內跑<b>兩個 container</b>，用<b>同一個 image</b>，只靠<b>啟動指令（command）不同</b>扮演不同角色：</p>
+  <div class="two-col">
+    <div class="node web" style="text-align:left">
+      <span class="t">web ＝ 前門（快速應答）</span>
+      <span class="s"><code>node server.js</code>（Next.js）· 對外 <code>:3000</code><br>
+      收 Slack webhook / <code>/api/health</code> / <code>/api/cron/standup</code><br>
+      <b>只做輕量事</b>：驗簽 → 丟 SQS → <b>3 秒內回 200</b><br>
+      （Slack 規定 3 秒沒回就當逾時重送，故 web 絕不自己做慢事）</span>
+    </div>
+    <div class="node worker" style="text-align:left">
+      <span class="t">worker ＝ 後廚（慢工出細活）</span>
+      <span class="s"><code>node dist/worker.js</code> · <b>不對外</b>（無 port）<br>
+      一直 long-poll SQS，撈到就做重活：<br>
+      <code>ffmpeg → Transcribe → Opus 4.8 → Notion</code><br>
+      另每 30s 做草稿提醒 / 逾期清理</span>
+    </div>
+  </div>
+
+  <h4>為什麼要拆成兩個？</h4>
+  <table>
+    <thead><tr><th>問題</th><th>拆開後</th></tr></thead>
+    <tbody>
+      <tr><td>Slack 要 3 秒回，但轉錄要 30–120s</td><td>web 秒回、worker 慢慢做，互不阻塞</td></tr>
+      <tr><td>重工作在部署/崩潰時會遺失</td><td>工作存在 SQS，worker 死了重啟還能撈回來做</td></tr>
+      <tr><td>兩者程式高度共用</td><td><b>同一個 image</b>，build 一次、版本一致，只用 command 區分</td></tr>
+    </tbody>
+  </table>
+
+  <h3>怎麼設定？Cluster → Task Definition → Service</h3>
+
+  <h4>① Cluster（一次性）</h4>
+  <pre><code>aws ecs create-cluster --cluster-name voice-notion</code></pre>
+
+  <h4>② Task Definition（藍圖）— 關鍵欄位</h4>
+  <table>
+    <thead><tr><th>欄位</th><th>意義</th><th>本專案值</th></tr></thead>
+    <tbody>
+      <tr><td><code>cpu</code> / <code>memory</code></td><td>Fargate 要多少算力（<b>只能選允許的組合</b>）</td><td><code>1024</code> / <code>2048</code>（1 vCPU / 2 GB）</td></tr>
+      <tr><td><code>networkMode</code></td><td>Fargate 唯一支援；每 task 拿自己的私有 IP</td><td><code>awsvpc</code></td></tr>
+      <tr><td><code>command</code></td><td><b>同 image 靠這行區分 web/worker</b></td><td>web <code>node server.js</code>；worker <code>node dist/worker.js</code></td></tr>
+      <tr><td><code>executionRoleArn</code></td><td>ECS agent 的權限：拉 image、注入機密、寫 log</td><td><code>voice-notion-exec</code></td></tr>
+      <tr><td><code>taskRoleArn</code></td><td><b>你程式碼</b>的權限：呼叫 DynamoDB / SQS / Bedrock / Transcribe</td><td><code>voice-notion-task</code></td></tr>
+      <tr><td><code>secrets</code></td><td>從 SSM SecureString 注入，不寫死在 image</td><td>8 個 <code>/voice-notion/*</code></td></tr>
+      <tr><td><code>portMappings</code></td><td>只有 web 有（對外 3000）；worker 無</td><td>web <code>3000</code></td></tr>
+      <tr><td><code>readonlyRootFilesystem</code> + <code>volumes</code></td><td>唯讀根 + ephemeral volume（合規 ECS.5）</td><td>tmp-web / nextcache / tmp-worker</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>⚠️ cpu/memory 不能亂填</b>——只能選 AWS 允許的組合：0.25 vCPU→0.5~2GB、0.5 vCPU→1~4GB、1 vCPU→2~8GB…。註冊指令：<code>aws ecs register-task-definition --cli-input-json file://.deploy-tmp/taskdef.json</code>，每次註冊產生新 <b>revision</b>（目前 rev9）。</div>
+
+  <h4>③ Service（維持常駐 + 掛 ALB）</h4>
+  <pre><code>aws ecs create-service \
+  --cluster voice-notion --service-name voice-notion \
+  --task-definition voice-notion \
+  --desired-count 1 \                          # 維持 1 個 task 常駐
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={
+      subnets=[subnet-08f30e8fce56c45e2,subnet-02e0d8667a43f94c5],  # 私有子網雙 AZ
+      securityGroups=[sg-02879faed4c21ad5b],
+      assignPublicIp=DISABLED }" \             # 無 public IP（合規 ECS.2），出網走 NAT
+  --load-balancers "targetGroupArn=&lt;voice-notion-tg&gt;,containerName=web,containerPort=3000" \
+  --health-check-grace-period-seconds 60</code></pre>
+  <table>
+    <thead><tr><th>設定</th><th>意義</th></tr></thead>
+    <tbody>
+      <tr><td><code>--desired-count 1</code></td><td>Service 的核心職責：<b>永遠維持 1 個健康 task</b>，掛了自動補</td></tr>
+      <tr><td><code>...containerName=web</code></td><td>只有 <b>web</b> container 接 ALB 流量（worker 不接）</td></tr>
+      <tr><td><code>assignPublicIp=DISABLED</code> + 私有子網</td><td>合規；task 出網（Bedrock/Notion/Slack）走 NAT gateway</td></tr>
+    </tbody>
+  </table>
+
+  <h4>④ 出新版（滾動更新，零停機）</h4>
+  <pre><code># build + push 新 image → 註冊新 revision → 觸發滾動更新
+aws ecs update-service --cluster voice-notion --service voice-notion \
+  --task-definition voice-notion --force-new-deployment</code></pre>
+  <div class="why"><b>零停機的原理：</b>ECS 會<b>先起新 task、確認健康後才關舊 task</b>，全程都有 web 實例在接 Slack。<b>ECS</b>＝店長（管數量/自癒/更新/掛 ALB）、<b>Fargate</b>＝免管廚房（實際算力）、<b>web</b>＝前門（秒回 Slack）、<b>worker</b>＝後廚（從 SQS 撈工作慢慢做）。</div>
+</section>
+
+<!-- ══════════════════════ 4. 選型比較 ══════════════════════ -->
+<section id="s4">
+  <h2><span class="num">4</span>架構選型比較（候選架構）</h2>
+  <div class="note"><b>性質說明：</b>本節是<strong>選型脈絡的說明</strong>——比較當初評估過的運算平台候選，解釋為何最終落地為 ECS Fargate。實際部署即以 Fargate 完成（見第 5 章）。</div>
+
+  <p>核心需求塑造了選型——以下四項是評分各候選的標準：</p>
+  <div class="callout-grid">
+    <div class="card"><h4>(a) 3 秒回 200 入口</h4><p>Slack webhook 必須在 3 秒內 ack，否則被判逾時重送。</p></div>
+    <div class="card"><h4>(b) 常駐背景 worker</h4><p>轉錄／LLM 需 30–120s，得有 long-poll SQS 的常駐消費者。</p></div>
+    <div class="card"><h4>(c) 私有子網合規</h4><p>金控資安基準要求 task 不得有 public IP。</p></div>
+    <div class="card"><h4>(d) 掛既有 ALB</h4><p>用 host-based rule 掛公司既有 ALB，不另建對外入口。</p></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>候選</th><th>常駐 worker</th><th>冷啟動 / ffmpeg</th><th>HA / 擴容</th><th>維運成本</th><th>私有子網 & 掛既有 ALB</th><th>契合度</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Lambda</b> + API Gateway</td>
+        <td><span class="mark no">✗</span>15 分鐘上限、非常駐，long-poll worker 不自然</td>
+        <td><span class="mark mid">△</span>冷啟動延遲；ffmpeg 需自打 layer</td>
+        <td><span class="mark yes">✓</span>自動、極佳</td>
+        <td><span class="mark yes">✓</span>低</td>
+        <td><span class="mark no">✗</span>接既有 ALB 需額外 target 設定，長工作彆扭</td>
+        <td><span class="tag bad">低</span></td>
+      </tr>
+      <tr>
+        <td><b>EC2</b> 自管</td>
+        <td><span class="mark yes">✓</span>完全可</td>
+        <td><span class="mark yes">✓</span>可預裝 ffmpeg</td>
+        <td><span class="mark mid">△</span>要自建 ASG / 健檢</td>
+        <td><span class="mark no">✗</span>高：自己 patch OS、管 AMI</td>
+        <td><span class="mark mid">△</span>可，但一切自理</td>
+        <td><span class="tag warn">中低</span></td>
+      </tr>
+      <tr>
+        <td><b>App Runner</b></td>
+        <td><span class="mark mid">△</span>單服務導向，web+worker 同 task 綁定不易</td>
+        <td><span class="mark yes">✓</span>容器化，OK</td>
+        <td><span class="mark yes">✓</span>自動</td>
+        <td><span class="mark yes">✓</span>低</td>
+        <td><span class="mark no">✗</span>私有子網 + host-rule + 雙容器彈性不足</td>
+        <td><span class="tag warn">中</span></td>
+      </tr>
+      <tr class="pick">
+        <td><b>ECS Fargate</b>（採用）</td>
+        <td><span class="mark yes">✓</span>worker 容器常駐 long-poll</td>
+        <td><span class="mark yes">✓</span>image 內含 ffmpeg（<code>node:20-slim</code>）</td>
+        <td><span class="mark yes">✓</span>調 desired count、滾動更新零停機</td>
+        <td><span class="mark yes">✓</span>低：免管 VM / OS patch</td>
+        <td><span class="mark yes">✓</span><b>同一 task 雙容器</b>、進私有子網、掛 aaron-dev TG</td>
+        <td><span class="tag ok">最高</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="why"><b>結論：</b>ECS Fargate 是唯一同時滿足「常駐 worker + 免管底層 + 雙容器同 task + 私有子網合規 + 掛既有 ALB」的選項。它其實是兩件事的組合：</div>
+  <div class="duo">
+    <div class="half a"><span class="t">Fargate</span><span class="s">算力（Compute）<br>實際跑容器，免管底層 VM / OS patch</span></div>
+    <div class="plus">+</div>
+    <div class="half b"><span class="t">ECS 控制平面</span><span class="s">編排（Orchestration）<br>跑幾個 task、掛了重啟、滾動更新</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 5. 當前架構逐元件 ══════════════════════ -->
+<section id="s5">
+  <h2><span class="num">5</span>當前架構逐元件原理</h2>
+  <p>每個元件都回答兩個問題：<b>它負責什麼</b>、<b>為何這樣選</b>。</p>
+
+  <div class="callout-grid">
+    <div class="card"><h4>ECR</h4><p>存 build 好的容器 image（web + worker 共用同一份）。以 git SHA / 時間戳當 tag，方便 rollback。</p></div>
+    <div class="card"><h4>ECS 控制平面</h4><p>決定跑幾個 task、掛了重啟、滾動更新。</p></div>
+    <div class="card"><h4>Fargate 算力</h4><p>實際跑容器，免管底層 VM／OS patch；跑在私有子網、無 public IP。</p></div>
+    <div class="card"><h4>CloudWatch Logs</h4><p>兩容器 stdout/stderr（<code>logInfo/logError</code>），stream prefix 分 web / worker。</p></div>
+  </div>
+
+  <h3>web + worker：雙容器、同 image、不同 command</h3>
+  <p>一個 Fargate task 內兩個 <code>essential</code> 容器共用同一 image：</p>
+  <ul>
+    <li><b>web</b>：<code>node server.js</code>（Next.js standalone），對外 3000，收 Slack webhook / health / cron。</li>
+    <li><b>worker</b>：<code>node dist/worker.js</code>，long-poll SQS + 每 30s 草稿 sweep，不對外。</li>
+  </ul>
+  <div class="why"><b>為何同 image？</b>兩者共用大量程式（skills、Notion/Slack client、DynamoDB adapter）；同 image 保證版本一致、build 一次、部署一致，只用啟動指令區分角色。</div>
+
+  <h3>入口：沿用既有 <code>aaron-dev</code> ALB（不自建）</h3>
+  <p>不自建 ALB / ACM / Route53，而是在公司既有的 <code>aaron-dev</code> ALB 443 listener 上加一條 <b>host-based rule（priority 20）</b>：<code>Host = notionvoice.ai-tech.ninja</code> → 本 app 的 Target Group。TLS 憑證（<code>*.ai-tech.ninja</code>）、DNS 都沿用。</p>
+  <div class="why"><b>為什麼？</b>帳號已有 aaron-dev ALB + 泛網域憑證 + Route53 record 指向它——自建一套 ALB/ACM/Route53 是重複投資又多一份維運。host-rule 只攔本網域，不影響 ALB 上其他服務。</div>
+
+  <h3>網路：私有子網雙 AZ + NAT + <code>assignPublicIp=DISABLED</code></h3>
+  <p>Fargate task 跑在<strong>私有子網（1a + 1c 雙 AZ）</strong>，無 public IP；出網（連 Bedrock us-east-1 / Transcribe / Notion / Slack / 拉 ECR）走 <b>NAT gateway</b>；入站一律經 ALB。</p>
+  <div class="why"><b>為什麼？</b>Security Hub <b>ECS.2</b> 規定 task 不得有 public IP。雙 AZ 提供高可用（一個 AZ 掛了另一個頂上）。這是從最初「公有子網省 NAT」被資安通報後改過來的（見第 8 章）。</div>
+
+  <h3>容器：<code>readonlyRootFilesystem</code> + ephemeral volumes</h3>
+  <p>兩容器 root 檔案系統設唯讀；少數可寫需求用 <b>task-level ephemeral volume + mountPoints</b> 提供：</p>
+  <table>
+    <thead><tr><th>volume 名</th><th>掛載點</th><th>所屬容器</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><code>tmp-web</code></td><td><code>/tmp</code></td><td>web</td><td>Node/libc 暫存</td></tr>
+      <tr><td><code>nextcache</code></td><td><code>/app/.next/cache</code></td><td>web</td><td>Next.js ISR / fetch cache</td></tr>
+      <tr><td><code>tmp-worker</code></td><td><code>/tmp</code></td><td>worker</td><td>ffmpeg / Node 暫用</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>為何不是 tmpfs？</b>Security Hub <b>ECS.5</b> 要求唯讀根。一般直覺會用 <code>linuxParameters.tmpfs</code>——但那是 <b>EC2 launch type 專屬，Fargate 不支援</b>。Fargate 的正解是 task-level ephemeral volume（隨附 20GB）+ mountPoints。app 幾乎不寫檔（ffmpeg 純 stdin/stdout pipe），只有上表兩處需可寫。</div>
+
+  <h3>DynamoDB：single-table（取代 6 個記憶體 store）</h3>
+  <p>PK/SK 兩個字串鍵的單表設計，<code>ttl</code> 屬性開 TTL 自動清理。取代原本放在記憶體的 6 類狀態（詳見第 7 章 schema）。</p>
+  <div class="why"><b>為什麼？</b>記憶體狀態在 task 重啟／滾動部署／多實例時會遺失或不同步 → 重複建卡、草稿按鈕失效。DynamoDB 跨容器共享、重啟不掉、on-demand 計費、TTL 自動清。</div>
+
+  <h3>SQS 主佇列 + DLQ</h3>
+  <p>web 收 webhook 後 3 秒內回 200，把慢工作（轉錄 30–120s、Notion 寫入）丟進 SQS；worker 消費。<code>VisibilityTimeout=180</code>（≥ 最長處理時間）、<code>maxReceiveCount=3</code>，重試 3 次仍失敗的毒訊息進 DLQ 隔離。</p>
+  <div class="why"><b>為什麼？</b>原本 fire-and-forget：webhook 回 200 後就地跑 30–120s，部署/縮容/崩潰時正在跑的工作隨容器死掉，且 Slack 不會重送已回 200 的事件 → 該筆永久遺失。SQS 讓工作持久化、可重試、隔離毒訊息。</div>
+
+  <h3>Amazon Transcribe streaming（語音轉文字）</h3>
+  <p>worker 把 Slack 音檔轉錄成逐字稿的 pipeline（region <span class="region tk">ap-northeast-1</span>）：</p>
+  <div class="flow">
+    <div class="title">語音轉錄 pipeline</div>
+    <div class="chain">
+      <div class="step entry"><span class="k">Slack 音檔</span><span class="d">m4a / ogg…</span></div>
+      <div class="conn">→</div>
+      <div class="step wk"><span class="k">ffmpeg 轉碼</span><span class="d">16k mono 16-bit LPCM</span></div>
+      <div class="conn">→</div>
+      <div class="step wk"><span class="k">切 chunks</span><span class="d">3200B / 100ms</span></div>
+      <div class="conn">→</div>
+      <div class="step proc"><span class="k">Transcribe streaming</span><span class="d">多語言 zh-TW+en-US · pcm · +詞庫</span></div>
+      <div class="conn">→</div>
+      <div class="step done"><span class="k">取 IsPartial:false</span><span class="d">串成逐字稿</span></div>
+    </div>
+  </div>
+  <div class="why"><b>為什麼？</b>Transcribe 專做語音轉文字、東京支援 <code>zh-TW</code>/<code>en-US</code> 串流、<b>免 model access</b>（只要 IAM <code>transcribe:StartStreamTranscription</code>）。（這是從 Nova Sonic 換來的——見第 8 章。）</div>
+
+  <h4>多語言自動辨識（zh-TW + en-US）</h4>
+  <p>預設帶 <code>IdentifyMultipleLanguages: true</code> + <code>LanguageOptions: zh-TW,en-US</code> + <code>PreferredLanguage: zh-TW</code>（<b>不帶固定 <code>LanguageCode</code></b>，兩者互斥）。中文為主、夾雜英文術語或整段英文都能正確轉譯；由 <code>TRANSCRIBE_LANGUAGE_OPTIONS</code> 控制，設單一值則退回固定 <code>LanguageCode</code>。</p>
+
+  <h4>自訂詞庫（custom vocabulary）</h4>
+  <p>帶 <code>VocabularyNames</code>（語言辨識時為複數、per-language）＝ <code>voice-notion-zhtw</code> + <code>voice-notion-enus</code>，把成員人名／專案術語直接餵給 Transcribe 提升辨識率。</p>
+  <table>
+    <thead><tr><th>詞庫</th><th>語言</th><th>內容</th><th>來源</th></tr></thead>
+    <tbody>
+      <tr><td><code>voice-notion-zhtw</code></td><td>zh-TW</td><td>中文人名／部門／團隊用語（如 昌宏、產險、痛點訪談）</td><td rowspan="2"><code>scripts/sync-transcribe-vocabulary.ts</code> 從 <code>lib/vocabulary.ts</code> + <code>MEMBERS_JSON</code> 自動蒐集、依中英文分流</td></tr>
+      <tr><td><code>voice-notion-enus</code></td><td>en-US</td><td>英文術語／人名（如 Notion-Voice、Databricks、Shane）</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>AWS 限制（script 已處理）：</b>zh-TW 詞庫不得含拉丁字母、en-US 不得含 CJK，混合詞（如 <code>陳采妍-Lucy</code>）依語系拆分；詞彙僅允許字母/數字/連字號，其他字元（<code>/</code>、<code>.</code>）會被清掉。Windows 建立時中文以 <code>\uXXXX</code> escape 傳 <code>--cli-input-json</code> 避開 cp950 編碼問題。<code>correctTranscription()</code> 仍做繁化與變體正規化後處理。</div>
+
+  <h3>Amazon Bedrock — Claude Opus 4.8（文字推理）</h3>
+  <p>欄位解析、任務拆分、站會摘要都走 Bedrock，用 Anthropic 官方 <code>AnthropicBedrockMantle</code> client（Mantle 端點），認證走 task role SigV4、無 API key。三個關鍵設定各有原因（皆為第 8 章的坑收斂而來）：</p>
+  <table>
+    <thead><tr><th>設定項</th><th>當前值</th><th>為何這樣設</th></tr></thead>
+    <tbody>
+      <tr><td>region</td><td><span class="region us">us-east-1</span></td><td>東京 profile 會被 SCP 擋到大阪</td></tr>
+      <tr><td>model id</td><td>裸前綴 <code>anthropic.claude-opus-4-8</code></td><td><code>us.</code> inference-profile id 在 Mantle 端點 404</td></tr>
+      <tr><td>結構化輸出</td><td>prompt 指示回 JSON</td><td>Mantle 此版不支援 <code>output_config</code>/<code>tool_choice</code>（回 400）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>EventBridge Rule（站會排程）</h3>
+  <p><b>經典 EventBridge Rule</b>（非新版 Scheduler）：<code>cron(40 1 ? * MON-FRI *)</code>（UTC = 台北 09:40）→ 透過 <b>API destination + Connection</b>（帶 <code>Authorization: Bearer &lt;CRON_SECRET&gt;</code>）打 <code>/api/cron/standup</code>。target 設 <code>MaximumRetryAttempts=0</code>。</p>
+  <div class="why"><b>為何用 Rule 而非 Scheduler？</b>EventBridge Scheduler 對 API destination target 的 ARN 格式驗證會失敗，經典 Rule 才穩。Rule 的 cron 是 UTC，故 <code>40 1</code>。cron route 是 <b>enqueue + 立即回 200</b>（統整走 worker），加上 retry=0，兩者共同防止「同步統整超時 → 退避重試 → 重複發訊」（見第 8 章）。</div>
+
+  <div class="callout-grid">
+    <div class="card"><h4>SSM Parameter Store</h4><p>Notion / Slack token、CRON_SECRET、MEMBERS_JSON 等機密以 SecureString（KMS 加密）存放，task 啟動由 ECS 注入為環境變數；不進 image、不留明文。Bedrock/Transcribe 不需 key（走 task role）。</p></div>
+    <div class="card"><h4>兩組 IAM 角色</h4><p><b>Execution role</b>：ECS agent 用——拉 ECR、寫 Logs、讀 SSM。<b>Task role</b>：程式碼用——DynamoDB / SQS（限本資源）、<code>bedrock:InvokeModel</code> + <code>bedrock-mantle:*</code>、<code>transcribe:StartStreamTranscription</code>。</p></div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 6. 跨區 ══════════════════════ -->
+<section id="s6">
+  <h2><span class="num">6</span>跨區設計（Cross-region）</h2>
+  <p>本系統刻意把 <b>Bedrock 放在 us-east-1、其餘全部在 ap-northeast-1</b>。這不是偏好，是被組織 SCP 逼出來的。</p>
+  <table>
+    <thead><tr><th>服務</th><th>Region</th><th>原因</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Bedrock（Claude Opus 4.8）</b></td>
+        <td class="region us">us-east-1</td>
+        <td>東京區的 Opus 只能走跨區 inference profile，會路由到大阪 <code>ap-northeast-3</code>，被組織 SCP（<code>p-563t3abk</code>）<b>明確 deny</b>；us-east-1 的 Mantle 端點用裸前綴可直接呼叫，且 Mantle <b>自行處理跨區路由</b>。</td>
+      </tr>
+      <tr>
+        <td>ECS / DynamoDB / SQS / <b>Transcribe</b> / EventBridge / ALB</td>
+        <td class="region tk">ap-northeast-1</td>
+        <td>主基礎設施；Transcribe 於東京支援 <code>zh-TW</code> 串流。</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>程式以 <code>ENV.bedrockRegion</code>（us-east-1）與 <code>ENV.awsRegion</code> / <code>ENV.transcribeRegion</code>（ap-northeast-1）分離處理。跨區的唯一代價是 worker → Bedrock 的一次美東往返延遲，對非即時的建卡流程可接受。</p>
+</section>
+
+<!-- ══════════════════════ 7. 程式設計原理 ══════════════════════ -->
+<section id="s7">
+  <h2><span class="num">7</span>程式設計原理（雲原生改造）</h2>
+  <p>原始程式有兩個「單機假設」，一擴容或一重啟就會壞。整個雲原生改造就是拆掉這兩個假設：</p>
+
+  <table>
+    <thead><tr><th>原始假設</th><th>問題</th><th>本架構如何解</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>所有狀態放記憶體</b>（<code>Map</code>/<code>Set</code>：thread→page、草稿、站會文字稿、事件去重、站會頁快取）</td>
+        <td>task 重啟／滾動部署／多實例 → 狀態遺失或不同步 → 重複建卡、草稿按鈕失效</td>
+        <td><b>DynamoDB single-table</b>：跨容器共享、重啟不掉、TTL 自動清理</td>
+      </tr>
+      <tr>
+        <td><b>fire-and-forget 背景處理</b>（webhook 回 200 後就地跑 30–120s 轉錄）</td>
+        <td>部署／縮容／崩潰時正在跑的工作隨容器死；Slack 對已回 200 的事件不重送 → 永久遺失</td>
+        <td><b>SQS</b>：webhook 只入列 + 回 200，worker 消費；失敗自動重試，毒訊息進 DLQ</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>DynamoDB single-table schema</h3>
+  <table>
+    <thead><tr><th>用途</th><th>PK</th><th>SK</th><th>主要屬性</th><th>TTL</th></tr></thead>
+    <tbody>
+      <tr><td>thread → page</td><td><code>THREAD#&lt;ts&gt;</code></td><td><code>PAGE</code></td><td><code>pageId</code></td><td>—</td></tr>
+      <tr><td>草稿</td><td><code>DRAFT#&lt;id&gt;</code></td><td><code>DRAFT</code></td><td><code>status</code>、<code>expiresAt</code>、<code>reminderAt</code>、完整 PendingDraft</td><td>+15 min（backstop）</td></tr>
+      <tr><td>站會文字稿</td><td><code>STANDUP#&lt;date&gt;</code></td><td><code>TX#&lt;ts&gt;#&lt;user&gt;</code></td><td><code>transcript</code>、<code>userId</code>…</td><td>+3 天</td></tr>
+      <tr><td>站會頁快取</td><td><code>STANDUP#&lt;date&gt;</code></td><td><code>PAGE</code></td><td><code>pageId</code></td><td>+3 天</td></tr>
+      <tr><td>出席者標記</td><td><code>STANDUP#&lt;date&gt;</code></td><td><code>ATTENDEE#&lt;slackId&gt;</code></td><td>—</td><td>+3 天</td></tr>
+      <tr><td>事件去重</td><td><code>EVENT#&lt;id&gt;</code></td><td><code>EVENT</code></td><td>—</td><td>+60s</td></tr>
+    </tbody>
+  </table>
+  <h4>原子操作（避免多容器 race）</h4>
+  <ul>
+    <li><code>claimDraft</code>：<code>UpdateItem</code> 帶 <code>ConditionExpression: status = pending</code> → 只有一個容器能把 pending 翻成 processing，防止重複送出。</li>
+    <li>事件去重 / 出席者：<code>PutItem</code> 帶 <code>attribute_not_exists(PK)</code> → 「首次才成功」。</li>
+  </ul>
+  <p>存取模式全部是 point get 或單一 partition query；只有 worker 的草稿 sweep 用一次帶 SK filter 的 scan（草稿存活 ≤10 分鐘、量極小，可接受）。</p>
+
+  <h3>本機開發 vs 正式環境（同一份程式）</h3>
+  <p>用 <code>STATE_BACKEND</code> 與 <code>SQS_QUEUE_URL</code> 做後端切換，本機零基礎設施依賴即可跑：</p>
+  <table>
+    <thead><tr><th></th><th>本機（預設）</th><th>正式（AWS）</th></tr></thead>
+    <tbody>
+      <tr><td>狀態</td><td>記憶體 <code>Map</code>/<code>Set</code></td><td>DynamoDB（<code>STATE_BACKEND=dynamodb</code>）</td></tr>
+      <tr><td>慢工作</td><td>web 就地 inline 處理（<code>SQS_QUEUE_URL</code> 未設）</td><td>入 SQS，worker 消費</td></tr>
+      <tr><td>草稿提醒/逾期</td><td><code>setTimeout</code></td><td>worker 每 30s <code>sweepDrafts()</code></td></tr>
+      <tr><td>站會排程</td><td>手動打 <code>/api/cron/standup</code></td><td>EventBridge Rule</td></tr>
+      <tr><td>AI 認證</td><td>本機 AWS 憑證</td><td>ECS task role（SigV4）</td></tr>
+    </tbody>
+  </table>
+  <div class="why"><b>兩個關鍵設計：</b>(1) 草稿提醒從 <code>setTimeout</code> 改為 worker 每 30s sweep——因為 <code>setTimeout</code> 無法跨容器重啟存活，改用條件寫入保證不重複觸發。(2) cron route 從「同步跑統整」改為「enqueue + 立即 200」——統整含多次 LLM 呼叫需 10–30s，同步會超過 EventBridge timeout。</div>
+</section>
+
+<!-- ══════════════════════ 8. 演進史 ══════════════════════ -->
+<section id="s8">
+  <h2><span class="num">8</span>架構演進史與關鍵決策（踩坑）</h2>
+  <p>這一章保留所有<strong>已被取代的決策</strong>作為軌跡。多數重大調整都是在真實帳號上撞牆後的修正。格式：<b>當時做法 → 調整為 → 原因</b>。</p>
+
+  <table>
+    <thead><tr><th>里程碑</th><th>當時做法</th><th>調整為</th><th>原因</th></tr></thead>
+    <tbody>
+      <tr><td>入口</td><td>原計畫自建 ALB + ACM + Route53</td><td><b>沿用既有 aaron-dev ALB</b>（建 TG + host-rule priority 20）</td><td>帳號已有 aaron-dev ALB + <code>*.ai-tech.ninja</code> 憑證，不必自建</td></tr>
+      <tr><td>Bedrock region</td><td>東京 <code>jp.</code>/<code>global.</code> inference profile</td><td><b>us-east-1</b></td><td>東京 profile 跨區到大阪 <code>ap-northeast-3</code>，被組織 SCP <code>p-563t3abk</code> deny</td></tr>
+      <tr><td>文字 model id</td><td><code>us.anthropic.claude-opus-4-8</code>（inference profile）</td><td><b>裸前綴 <code>anthropic.claude-opus-4-8</code></b></td><td>Mantle 端點不吃 <code>us.</code> profile id（404）；Mantle 自行跨區路由</td></tr>
+      <tr><td>Bedrock 權限</td><td>task role 只有 <code>bedrock:InvokeModel</code></td><td>加 <b><code>bedrock-mantle:*</code></b></td><td><code>AnthropicBedrockMantle</code> client 走 Mantle 端點，用 <code>bedrock-mantle:CreateInference</code>（否則 403）</td></tr>
+      <tr><td>結構化輸出</td><td>Mantle <code>output_config.format</code></td><td><b>prompt-based JSON</b></td><td>Mantle 此版不支援 <code>output_config</code>（回 400 Extra inputs not permitted）</td></tr>
+      <tr><td>Slack 連通</td><td>aaron-dev ALB 只掛台灣 IP 白名單 SG</td><td>加掛 <b><code>sg-09753568af74335fc</code>（0.0.0.0/0:443）</b></td><td>Slack 美國伺服器被白名單擋 → URL 驗證失敗</td></tr>
+      <tr><td>合規 ECS.2/ECS.5</td><td>公有子網 + <code>assignPublicIp=ENABLED</code> + 無唯讀根</td><td><b>私有子網雙 AZ + NAT + <code>DISABLED</code> + 唯讀根 + ephemeral volumes</b></td><td>資安院 High 通報 <code>INC101783026643/644</code></td></tr>
+      <tr><td>語音轉錄</td><td>Bedrock <b>Nova 2 Sonic</b>（debug：<code>AudioOutputConfiguration must be set</code> → 修好後 <code>transcriptLength:0</code>）</td><td><b>Amazon Transcribe streaming</b>（<code>zh-TW</code>）</td><td>Nova Sonic 是 speech-to-<b>speech</b>（即時對話），批次轉錄是逆用途，3 次回空稿</td></tr>
+      <tr><td>站會排程</td><td>原計畫 EventBridge <b>Scheduler</b></td><td><b>經典 EventBridge Rule</b></td><td>Scheduler 對 API destination target ARN 驗證失敗</td></tr>
+      <tr><td>站會觸發</td><td>cron route <b>同步</b>跑統整（10–30s）才回 200</td><td><b>enqueue SQS + 立即回 200</b>；target <code>MaximumRetryAttempts=0</code></td><td>同步超時 → EventBridge 退避重試 → 重複統整 + 重複發「處理完成」</td></tr>
+    </tbody>
+  </table>
+
+  <h3>兩個代表性事件的完整脈絡</h3>
+  <h4>語音：Nova Sonic → Amazon Transcribe</h4>
+  <p>Nova 2 Sonic 是 speech-to-<b>speech</b>（即時語音對話）模型，批次語音轉錄是逆用途。先撞 <code>AudioOutputConfiguration must be set</code>（Sonic 的 <code>promptStart</code> 必須宣告音訊輸出，即使只想轉錄），依官方 input/output-events schema 修好後 API 通了、音訊也送進去了，但<strong>三次都回 <code>transcriptLength: 0</code></strong>——它不把批次錄音當作要轉錄的對象。耗費 4 個 build 週期後放棄，改用專做語音轉文字的 Amazon Transcribe（東京支援 <code>zh-TW</code> 串流、免 model access），複用既有 ffmpeg 產出的 16k mono LPCM。</p>
+
+  <h4>站會：重試風暴 → enqueue + retry=0</h4>
+  <p>症狀：09:40 統整完後，每隔數分鐘又重跑並重發「處理完成」。根因：cron route 同步跑完整統整（6 人 × LLM 摘要 + 寫 Notion，10–30 秒）才回 200，超過 EventBridge API destination 的 timeout（~5s）→ EventBridge 判定失敗 → <b>預設指數退避重試</b>。觸發間隔 65s→104s→3.6min→6.7min→8.5min 正是退避特徵。</p>
+  <p>雙管齊下修復：<b>止血</b>——target 設 <code>RetryPolicy: {MaximumRetryAttempts: 0}</code>；<b>治本</b>——cron route 改「enqueue SQS + 立即回 200」，統整由 worker 背景跑（新增 <code>kind:"standup"</code> → <code>runStandupAggregation</code>），EventBridge 永遠即時收到 200。</p>
+
+  <h3>task-def 版本沿革（rev1 → rev9）</h3>
+  <table>
+    <thead><tr><th>rev</th><th>變更</th><th>觸發原因</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>初版（web+worker、公有子網、Bedrock STT env、無唯讀根）</td><td>首次部署</td></tr>
+      <tr><td>2</td><td><code>BEDROCK_TEXT_MODEL_ID</code> 改裸前綴 <code>anthropic.claude-opus-4-8</code></td><td>Mantle 404</td></tr>
+      <tr><td>3</td><td>修 <code>output_config</code>（改 prompt-based JSON）</td><td>Mantle 不支援 <code>output_config</code></td></tr>
+      <tr><td>4</td><td>確認含修正的 bundle</td><td>Docker tag 重用坑</td></tr>
+      <tr><td>5</td><td><b>唯讀根 + ephemeral volumes</b>（ECS.5）</td><td>Security Hub</td></tr>
+      <tr><td>6</td><td>Nova Sonic 事件 schema 修正（後棄用）</td><td>AudioOutputConfiguration</td></tr>
+      <tr><td>7</td><td>Nova Sonic 診斷 log（後棄用）</td><td>transcriptLength:0 排查</td></tr>
+      <tr><td>8</td><td><b>改用 Amazon Transcribe</b>（<code>lib/aws/transcribe.ts</code>）</td><td>Sonic 放棄</td></tr>
+      <tr class="pick"><td><b>9（現行）</b></td><td>站會 <b>enqueue SQS + 立即 200</b>（<code>kind:standup</code> → worker）；image <code>standup-fix-1783305226</code></td><td>站會重複觸發</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>註：</b>網路變更（ECS.2：私有子網雙 AZ + <code>assignPublicIp=DISABLED</code>）是在 rev5 之後以 <code>update-service --network-configuration</code> 施作，非靠 task-def revision。</div>
+
+  <h3>環境 / 工具鏈踩坑（Windows + Docker + Claude Code 環境）</h3>
+  <table>
+    <thead><tr><th>坑</th><th>症狀</th><th>解法</th></tr></thead>
+    <tbody>
+      <tr><td>Docker build npm ci 連不到網路</td><td><code>RUN npm ci</code> 報 <code>npm error network</code></td><td>Docker VM DNS 只回 IPv6 → <code>daemon.json</code> 加 <code>"dns":["8.8.8.8","8.8.4.4"]</code> + 重啟 Docker</td></tr>
+      <tr><td>Git Bash 路徑轉換</td><td><code>/ecs/voice-notion</code> 被改寫成 <code>C:/Program Files/Git/...</code></td><td>指令前 <code>export MSYS_NO_PATHCONV=1</code>；暫存 JSON 放專案內 <code>.deploy-tmp/</code> 用 <code>file://$(pwd -W)/...</code></td></tr>
+      <tr><td>Bedrock 憑證被蓋</td><td>profile 憑證被 <code>AWS_BEARER_TOKEN_BEDROCK</code> 蓋掉</td><td>每個部署指令前 <code>unset AWS_BEARER_TOKEN_BEDROCK</code></td></tr>
+      <tr><td>Docker cache trap</td><td>新 revision 竟不含 code 改動</td><td><code>docker build --no-cache</code> + 驗證 bundle 內容</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════════════════ 9. 成本與維運 ══════════════════════ -->
+<section id="s9">
+  <h2><span class="num">9</span>成本與維運（Runbook）</h2>
+  <h3>成本估算（東京，約 730 h/月）</h3>
+  <div class="note">粗估，請以 AWS Pricing Calculator 為準。</div>
+  <table>
+    <thead><tr><th>項目</th><th>配置</th><th>~USD/月</th></tr></thead>
+    <tbody>
+      <tr><td>Fargate</td><td>1 task，1 vCPU / 2 GB，24×7</td><td>~55</td></tr>
+      <tr><td>ALB</td><td>沿用既有 aaron-dev，無額外 ALB 成本</td><td>0</td></tr>
+      <tr><td>NAT Gateway</td><td>沿用既有 NAT（共用則僅流量費）</td><td>依用量</td></tr>
+      <tr><td>DynamoDB</td><td>on-demand，低流量 + TTL</td><td>&lt;1</td></tr>
+      <tr><td>SQS</td><td>遠低於免費額度</td><td>&lt;1</td></tr>
+      <tr><td>CloudWatch Logs</td><td>低量</td><td>~1–2</td></tr>
+      <tr><td>ECR</td><td>image 儲存</td><td>~0.10</td></tr>
+      <tr><td><b>Amazon Transcribe</b></td><td>streaming，按音檔分鐘計費</td><td>依用量</td></tr>
+      <tr><td><b>Bedrock（Opus 4.8）</b></td><td>~$5/$25 每百萬 token（in/out）</td><td>依用量</td></tr>
+      <tr class="pick"><td colspan="2"><b>小計（不含 AI 用量、沿用既有 ALB/NAT）</b></td><td><b>~$57</b></td></tr>
+    </tbody>
+  </table>
+  <p><b>成本槓桿：</b>Fargate 常駐計費，非尖峰可縮到 1 task（別縮 0，否則 Slack 打來沒人接）；CPU/記憶體用不到可降到 0.5 vCPU/1 GB；文字成本若吃重，<code>BEDROCK_TEXT_MODEL_ID</code> 改 <code>anthropic.claude-sonnet-4-6</code> 即可（純環境變數）。</p>
+
+  <h3>維運手冊</h3>
+  <table>
+    <thead><tr><th>情境</th><th>操作</th></tr></thead>
+    <tbody>
+      <tr><td>出新版</td><td><code>docker build</code>（未改 SHA 加 <code>--no-cache</code>）→ push ECR（時間戳/SHA tag）→ 新 task-def revision → <code>aws ecs update-service --force-new-deployment</code>（滾動更新、零停機）</td></tr>
+      <tr><td>Rollback</td><td><code>update-service --task-definition voice-notion:&lt;舊 revision&gt;</code></td></tr>
+      <tr><td>看 log</td><td><code>aws logs tail /ecs/voice-notion --follow</code></td></tr>
+      <tr><td>DLQ 排查</td><td>檢查 DLQ 深度 → 看訊息 body 找失敗原因 → 修正後 redrive 回主佇列</td></tr>
+      <tr><td>輪替機密</td><td>更新 SSM 參數 → <code>update-service --force-new-deployment</code> 重新注入</td></tr>
+      <tr><td>擴容</td><td>提高 desired count（狀態已在 DynamoDB，可安全水平擴展）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>常見故障排查</h3>
+  <table>
+    <thead><tr><th>症狀</th><th>檢查</th></tr></thead>
+    <tbody>
+      <tr><td>ALB target unhealthy</td><td>健康檢查路徑 <code>/api/health</code>、container port 3000、task SG 允許來源為 aaron-dev ALB SG、<code>HOSTNAME=0.0.0.0</code></td></tr>
+      <tr><td>task 拉不到 image</td><td>execution role 的 ECR 權限、image tag 是否存在、私有子網能否經 NAT 拉 ECR</td></tr>
+      <tr><td>轉錄失敗</td><td>image 內有 ffmpeg、task role 有 <code>transcribe:StartStreamTranscription</code>、<code>TRANSCRIBE_REGION=ap-northeast-1</code>、音檔轉成 16k mono LPCM</td></tr>
+      <tr><td>文字解析失敗（403）</td><td>task role 缺 <code>bedrock-mantle:*</code></td></tr>
+      <tr><td>文字解析失敗（404）</td><td><code>BEDROCK_TEXT_MODEL_ID</code> 要用裸前綴、<code>BEDROCK_REGION=us-east-1</code></td></tr>
+      <tr><td>站會重複發訊</td><td>cron route 是 enqueue + 立即 200、target <code>MaximumRetryAttempts=0</code>、Rule cron 是 UTC（<code>40 1</code>）</td></tr>
+      <tr><td>Slack 連不到</td><td>aaron-dev ALB 掛有對 <code>0.0.0.0/0</code> 開 443 的 SG（<code>sg-09753568af74335fc</code>）</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════════════════ 10. 附錄 ══════════════════════ -->
+<section id="s10">
+  <h2><span class="num">10</span>附錄</h2>
+
+  <h3>當前資源清單（實際建立，region ap-northeast-1；Bedrock 於 us-east-1）</h3>
+  <table>
+    <thead><tr><th>服務</th><th>名稱</th><th>識別碼 / 值</th></tr></thead>
+    <tbody>
+      <tr><td>ECR</td><td><code>voice-notion</code></td><td><code>767397933116.dkr.ecr.ap-northeast-1.amazonaws.com/voice-notion</code></td></tr>
+      <tr><td>DynamoDB</td><td><code>voice-notion</code></td><td>single-table，TTL=<code>ttl</code> ENABLED</td></tr>
+      <tr><td>SQS 主佇列 / DLQ</td><td><code>voice-notion</code> / <code>voice-notion-dlq</code></td><td>VisTimeout 180、maxReceive 3</td></tr>
+      <tr><td>SSM 參數（8）</td><td><code>/voice-notion/*</code></td><td>NOTION_API_KEY、NOTION_DATABASE_ID、MEETING_DATABASE_ID、ERROR_REPORT_DATABASE_ID、SLACK_BOT_TOKEN、SLACK_SIGNING_SECRET、MEMBERS_JSON、CRON_SECRET（皆 SecureString）</td></tr>
+      <tr><td>IAM exec role</td><td><code>voice-notion-exec</code></td><td>ECSTaskExecutionRolePolicy + SSM read <code>/voice-notion/*</code></td></tr>
+      <tr><td>IAM task role</td><td><code>voice-notion-task</code></td><td>Dynamo+SQS（限本資源）、<code>bedrock:InvokeModel</code>、<code>bedrock-mantle:*</code>、<code>transcribe:StartStreamTranscription</code></td></tr>
+      <tr><td>Task SG</td><td><code>voice-notion-task-sg</code></td><td><code>sg-02879faed4c21ad5b</code>（允許 3000 from aaron-dev ALB SG）</td></tr>
+      <tr><td>Target Group</td><td><code>voice-notion-tg</code></td><td>ip 型、port 3000、健檢 <code>/api/health</code></td></tr>
+      <tr><td>ALB rule</td><td>priority 20</td><td>host <code>notionvoice.ai-tech.ninja</code>（沿用 aaron-dev ALB）</td></tr>
+      <tr><td>ECS cluster / service</td><td><code>voice-notion</code></td><td>desired 1；私有子網 1a+1c；<code>assignPublicIp=DISABLED</code></td></tr>
+      <tr><td>ECS task definition</td><td><code>voice-notion:9</code></td><td>1 vCPU / 2 GB；image <code>standup-fix-1783305226</code></td></tr>
+      <tr><td>EventBridge</td><td><code>voice-notion-standup</code>（Rule）+ <code>voice-notion-cron</code>（Connection/API dest）</td><td><code>cron(40 1 ? * MON-FRI *)</code> UTC；retry=0</td></tr>
+      <tr><td>私有子網 / NAT</td><td>—</td><td><code>subnet-08f30e8fce56c45e2</code>(1a) + <code>subnet-02e0d8667a43f94c5</code>(1c) → <code>nat-1db98e731fb872914</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>關鍵環境變數</h3>
+  <table>
+    <thead><tr><th>變數</th><th>值 / 說明</th></tr></thead>
+    <tbody>
+      <tr><td><code>AWS_REGION</code></td><td><code>ap-northeast-1</code>（DynamoDB / SQS / ECS）</td></tr>
+      <tr><td><code>BEDROCK_REGION</code></td><td><code>us-east-1</code>（Bedrock 文字）</td></tr>
+      <tr><td><code>BEDROCK_TEXT_MODEL_ID</code></td><td><code>anthropic.claude-opus-4-8</code>（裸前綴，Mantle）</td></tr>
+      <tr><td><code>TRANSCRIBE_REGION</code></td><td><code>ap-northeast-1</code></td></tr>
+      <tr><td><code>STATE_BACKEND</code></td><td><code>dynamodb</code>（本機留空 → 記憶體）</td></tr>
+      <tr><td><code>SQS_QUEUE_URL</code></td><td>主佇列 URL（本機留空 → inline 處理）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>task-def 環境片段（rev9）</h3>
+  <pre><code>"environment": [
+  {"name":"AWS_REGION","value":"ap-northeast-1"},
+  {"name":"BEDROCK_REGION","value":"us-east-1"},
+  {"name":"TRANSCRIBE_REGION","value":"ap-northeast-1"},
+  {"name":"BEDROCK_TEXT_MODEL_ID","value":"anthropic.claude-opus-4-8"},
+  {"name":"STATE_BACKEND","value":"dynamodb"},
+  {"name":"DYNAMODB_TABLE","value":"voice-notion"},
+  {"name":"SQS_QUEUE_URL","value":"https://sqs.ap-northeast-1.amazonaws.com/.../voice-notion"}
+]
+"readonlyRootFilesystem": true    // 兩容器；配 tmp-web / nextcache / tmp-worker volumes</code></pre>
+
+  <h3>文件索引</h3>
+  <ul>
+    <li><a href="ARCHITECTURE.md">ARCHITECTURE.md</a> — 當前架構設計、成本、維運（current-state）</li>
+    <li><a href="DEPLOYMENT.md">DEPLOYMENT.md</a> — 可直接複製的 AWS CLI 部署手冊</li>
+    <li><a href="DEPLOYMENT-LOG.md">DEPLOYMENT-LOG.md</a> — 實際建立的資源與完整演進史</li>
+    <li><a href="../README.md">README.md</a> — 專案總覽與本機開發</li>
+  </ul>
+</section>
+
+<footer>
+  voice-notion 部署與選型架構說明書 · 對應 task-def rev9 / Amazon Transcribe / 私有子網雙 AZ / EventBridge Rule ·
+  內容以 docs/ 四份文件為單一事實來源
+</footer>
+</main>
+</div>
+</body>
+</html>
