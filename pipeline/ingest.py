@@ -63,6 +63,11 @@ def ingest_sources(store: RunStore, settings: Settings) -> list[Source]:
     The index is only updated by `mark_processed`, called after reconcile succeeds — so a
     crash mid-extraction leaves the file pending rather than silently skipped next time.
     """
+    # Pull the intake folder out of durable storage first. Without this the Cloud Run
+    # container scans the empty `sources/` its own Dockerfile created and finds nothing, so
+    # pushing a document to the repo was silently ignored — see materialize_sources().
+    store.materialize_sources()
+
     sources_dir = settings.sources_dir
     if not sources_dir.is_dir():
         log.info("no sources/ directory")

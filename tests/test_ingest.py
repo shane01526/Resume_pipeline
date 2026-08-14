@@ -9,6 +9,7 @@ import pytest
 from pipeline.config import Settings
 from pipeline.ingest import MAX_CHARS, ingest_sources, mark_processed
 from pipeline.state import RunStore
+from pipeline.storage import Storage
 
 
 @pytest.fixture
@@ -212,3 +213,97 @@ def test_unreadable_file_does_not_fail_the_run(workspace: tuple[Settings, RunSto
 def test_missing_sources_directory_is_not_an_error(tmp_path: Path) -> None:
     settings = Settings(repo_root=tmp_path)
     assert ingest_sources(RunStore(settings), settings) == []
+
+
+# --- the intake folder must arrive from durable storage -----------------------
+
+
+class _DurableOnlyStorage(Storage):
+    """Storage with no filesystem behind it, like the GitHub backend on Cloud Run.
+
+    LocalStorage cannot express this case: there, `sources/` on disk *is* the durable copy,
+    so a test using it passes whether or not ingest fetches anything. That is exactly why
+    the production gap — an empty `sources/` in the container — went unnoticed.
+    """
+
+    def __init__(self, data: dict[str, bytes]) -> None:
+        self._data = dict(data)
+
+    def read(self, path: str) -> bytes | None:
+        return self._data.get(path)
+
+    def write(self, path: str, data: bytes, message: str) -> None:  # noqa: ARG002
+        self._data[path] = data
+
+    def delete_prefix(self, prefix: str, message: str) -> int:  # noqa: ARG002
+        keys = [k for k in self._data if k.startswith(prefix)]
+        for key in keys:
+            del self._data[key]
+        return len(keys)
+
+    def list_prefix(self, prefix: str) -> list[str]:
+        return sorted({k for k in self._data if k.startswith(prefix)})
+
+    def walk(self, prefix: str) -> list[str]:
+        return sorted(k for k in self._data if k.startswith(prefix))
+
+
+def test_sources_pushed_to_the_repo_are_ingested_on_an_empty_container(tmp_path: Path) -> None:
+    """A document pushed to `sources/` must be picked up by a container that has never seen it.
+
+    The measured gap: the Dockerfile creates an empty `/app/sources`, the entrypoint skips the
+    git checkout when STORAGE_BACKEND=github, and ingest scanned that empty directory. So
+    dropping a file in `sources/` and pushing it did nothing, with no log line saying so.
+    """
+    (tmp_path / "sources").mkdir()
+    (tmp_path / "state").mkdir()
+    settings = Settings(repo_root=tmp_path)
+    store = RunStore(
+        settings,
+        storage=_DurableOnlyStorage(
+            {
+                "sources/internship_report.md": b"Built an ETL pipeline on AWS Lambda.",
+                "sources/notes/extra.txt": b"Presented at a conference.",
+                "sources/README.md": b"instructions, not material",
+                "sources/.gitkeep": b"",
+            }
+        ),
+    )
+
+    assert not any(settings.sources_dir.rglob("*")), "the container starts with nothing"
+
+    pending = ingest_sources(store, settings)
+    names = sorted(s.name for s in pending)
+
+    assert names == ["extra.txt", "internship_report.md"], (
+        f"expected both pushed documents to be ingested, got {names}"
+    )
+    # README.md and dotfiles are the folder's own scaffolding, not source material.
+    assert "README.md" not in names
+
+
+def test_materialize_sources_does_not_rewrite_unchanged_files(tmp_path: Path) -> None:
+    """Called on every run, so it must be a no-op when nothing changed — otherwise the
+    local backend would rewrite its own files each time."""
+    (tmp_path / "sources").mkdir()
+    (tmp_path / "state").mkdir()
+    settings = Settings(repo_root=tmp_path)
+    store = RunStore(settings, storage=_DurableOnlyStorage({"sources/a.md": b"same bytes"}))
+
+    assert store.materialize_sources() == 1
+    assert store.materialize_sources() == 0
+
+
+def test_changed_source_is_refetched_on_a_reused_instance(tmp_path: Path) -> None:
+    """A stale local copy must not shadow an updated document."""
+    (tmp_path / "sources").mkdir()
+    (tmp_path / "state").mkdir()
+    settings = Settings(repo_root=tmp_path)
+    storage = _DurableOnlyStorage({"sources/a.md": b"version one"})
+    store = RunStore(settings, storage=storage)
+
+    store.materialize_sources()
+    storage.write("sources/a.md", b"version two, revised", "update")
+
+    assert store.materialize_sources() == 1
+    assert (settings.sources_dir / "a.md").read_bytes() == b"version two, revised"

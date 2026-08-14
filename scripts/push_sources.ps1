@@ -7,7 +7,10 @@
     會撿到；想立刻跑就在 Slack 打 /resume update。
 
     刻意只 stage sources/：output/ 與 state/ 是 pipeline 自己 commit 的，
-    從本機一起推上去會和 Render 上的執行搶著寫同一批檔案。
+    從本機一起推上去會和 Cloud Run 上的執行搶著寫同一批檔案。
+
+    為什麼一定要 push、光放本機沒用：Cloud Run 上的 container 沒有 git checkout，
+    它是透過 GitHub API 讀 sources/ 的。檔案只存在你硬碟上時，服務看不到。
 
 .EXAMPLE
     .\scripts\push_sources.ps1
@@ -57,3 +60,8 @@ git push origin main
 Write-Host "`n✅ 已推送。" -ForegroundColor Green
 Write-Host "   下次定時執行（台北時間週一 03:00）會處理這些文件。"
 Write-Host "   想立刻跑：在 Slack 打  /resume update"
+Write-Host ""
+Write-Host "   接下來會發生什麼：LLM 從這些文件抽出候選項目，寫進 Notion 的"
+Write-Host "   Experiences / Projects / Skills，狀態是 Pending Review 且沒勾 Include。"
+Write-Host "   要進履歷得你自己在 Notion 改成 Approved 並勾 Include in Resume —"
+Write-Host "   同一次執行不會把剛抽到的東西放進履歷。"

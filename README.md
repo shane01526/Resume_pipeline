@@ -26,7 +26,7 @@ sources/ 丟文件 ──▶ LLM 抽取 ──▶ Notion 待審 ──▶ 你在
 
 | 情境 | 你做什麼 |
 | --- | --- |
-| 實習結束、手上有 PRD / 報告 / 結案簡報 | 丟進 `sources/`，跑 `.\scripts\push_sources.ps1` |
+| 實習結束、手上有 PRD / 報告 / 結案簡報 | 丟進本機 `sources/`，跑 `.\scripts\push_sources.ps1`（**一定要 push**，見下） |
 | 收到 Slack 通知 | 點 diff 連結看 before/after → **核准** 或 **駁回** |
 | Slack 說有新的待審項目 | 開 Notion 篩 `Status = Pending Review` → 改字、勾 `Include in Resume`、改成 `Approved` |
 | 臨時要投遞、想立刻更新 | Slack 打 `/resume update` |
@@ -40,6 +40,32 @@ https://<你的-cloud-run-網址>/resume/en.pdf          .../resume/zh.pdf
 https://<你的-cloud-run-網址>/resume/en.latex.pdf    .../resume/zh.latex.pdf
 https://<你的-cloud-run-網址>/resume/en.docx         .../resume/zh.docx
 ```
+
+---
+
+## 新素材要放哪裡：本機 `sources/`，然後 push
+
+**兩個都要，順序是「放本機 → push 上 GitHub」。**
+
+```powershell
+# 1. 把文件複製進本機的 sources\（.pdf / .docx / .pptx / .md / .txt）
+# 2. 推上去
+.\scripts\push_sources.ps1
+```
+
+**為什麼光放本機沒用**：Cloud Run 的 container 沒有 git checkout —— 它是透過 GitHub API
+讀 `sources/` 的。檔案只存在你硬碟上時，線上服務看不到。
+
+**為什麼不建議直接在 GitHub 網頁上傳**：可以，效果一樣（pipeline 只看 repo 裡的內容）。
+但用腳本比較不容易出錯 —— 它只 stage `sources/`，不會把 `output/` 與 `state/` 一起推上去
+跟線上執行搶著寫同一批檔案，而且會先 `pull --rebase` 同步 pipeline 自己的 commit。
+
+**推上去之後不會馬上跑。** 下次定時執行（週一 03:00 台北）會撿到；想立刻跑就在 Slack 打
+`/resume update`。
+
+抽出來的東西會進 Notion 的 Experiences / Projects / Skills，狀態是 `Pending Review`
+且 `Include in Resume` 沒勾 —— **同一次執行不會把剛抽到的東西放進履歷**。要進履歷得你在
+Notion 改成 `Approved` 並勾 `Include in Resume`。
 
 ---
 
@@ -420,7 +446,7 @@ pipeline/
   config.py       所有環境變數（repo_root 是欄位，測試可指向 temp 目錄）
   models.py       Resume / Experience / Project / ...（stable_key 是 diff 的比對依據）
   state.py        run 狀態、diff 基準、source 索引 — 全部落在 state/
-  ingest.py       ① 掃 sources/，用 SHA256 做增量
+  ingest.py       ① 從 storage 取 sources/ 再掃，用 SHA256 做增量
   extract.py      ② LLM 抽取候選項目（prompt 刻意要求保守）
   reconcile.py    ③ 寫進 Notion 待審 —「絕不覆寫已核准」在這裡
   notion_client.py④ 讀七個 DB → resume.json

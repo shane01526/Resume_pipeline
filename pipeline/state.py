@@ -244,6 +244,44 @@ class RunStore:
             log.info("restored %d artifact(s) for run %s from storage", restored, run_id)
         return restored > 0
 
+    def materialize_sources(self) -> int:
+        """Bring `sources/` from durable storage onto local disk. Returns files written.
+
+        The intake folder is the one input that arrives from *outside* the service, and it
+        was the one thing never read through storage. On Cloud Run the container has an
+        `/app/sources` created empty by the Dockerfile and no git checkout, so
+        `ingest_sources()` scanned an empty directory and returned nothing — silently.
+        Dropping a document in `sources/` and pushing it had no effect at all: no log, no
+        warning, no Slack message, just a run that quietly found no new material.
+
+        Compares bytes before writing, so the local backend (where the durable copy *is* the
+        local file) does no work, and a changed document on a reused instance still updates.
+        """
+        target = self._settings.sources_dir
+        written = 0
+
+        for key in self._storage.walk("sources"):
+            name = key.split("sources/", 1)[-1]
+            # The folder's own instructions and git placeholders are not source material;
+            # ingest skips them too, but downloading them is pointless.
+            if not name or name.startswith(".") or name == "README.md":
+                continue
+
+            data = self._storage.read(key)
+            if data is None:
+                continue
+
+            path = target / name
+            if path.is_file() and path.read_bytes() == data:
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+            written += 1
+
+        if written:
+            log.info("fetched %d source file(s) from storage", written)
+        return written
+
     def list_runs(self, *, limit: int = 50) -> list[Run]:
         # Run ids are timestamp-prefixed, so reverse-sorted names are newest first.
         entries = sorted(self._storage.list_prefix("state/runs"), reverse=True)
