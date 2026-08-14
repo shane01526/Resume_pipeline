@@ -1,5 +1,12 @@
 {
-  "artifacts": [],
+  "artifacts": [
+    "artifacts/en/resume.pdf",
+    "artifacts/zh/resume.pdf",
+    "artifacts/en/resume.latex.pdf",
+    "artifacts/zh/resume.latex.pdf",
+    "artifacts/en/resume.docx",
+    "artifacts/zh/resume.docx"
+  ],
   "commit_sha": null,
   "counts": {
     "added": 16,
@@ -11,7 +18,7 @@
   "error": null,
   "id": "20260814T030405Z-manual",
   "notion_run_page_id": null,
-  "status": "Building",
+  "status": "Pending Approval",
   "trigger": "Manual",
-  "updated_at": "2026-08-14T03:04:16.639900Z"
+  "updated_at": "2026-08-14T03:05:18.853830Z"
 }
