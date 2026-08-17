@@ -1,0 +1,49 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [
+        "+Built a Slack bot that converts voice or text @mentions into confirmable Notion pages and tasks, plus a daily automated standup summary",
+        "-Built a Slack bot that converts voice or text @mentions into confirmable Notion pages and tasks, plus a daily automated standup summary",
+        "-Ran web and worker containers from one image in a single Fargate task, differentiating roles only by start command (node server.js / node dist/worker.js)",
+        "-Replaced 6 in-memory state stores with a DynamoDB single-table design (PK/SK, TTL) so state survived task restarts and was shared across containers",
+        "-Added atomic operations using UpdateItem with ConditionExpression (claimDraft) and PutItem with attribute_not_exists to prevent duplicate submissions across containers",
+        "-Configured SQS main queue plus DLQ with VisibilityTimeout=180 and maxReceiveCount=3 to persist, retry and isolate poison messages",
+        "-Built a speech-to-text pipeline using ffmpeg (16k mono 16-bit LPCM, 3200B/100ms chunks) into Amazon Transcribe streaming with multi-language zh-TW+en-US identification",
+        "-Created custom Transcribe vocabularies (voice-notion-zhtw / voice-notion-enus) synced from lib/vocabulary.ts and MEMBERS_JSON to improve recognition of member names and project terms",
+        "-Integrated Bedrock Claude Opus 4.8 via the AnthropicBedrockMantle client in us-east-1 using ECS task role SigV4 auth with no API key",
+        "-Migrated speech recognition from Bedrock Nova 2 Sonic to Amazon Transcribe after Sonic returned transcriptLength:0 across three attempts, as it is a speech-to-speech model",
+        "-Fixed a standup retry storm by changing the cron route to enqueue + immediate 200 and setting EventBridge target MaximumRetryAttempts=0, eliminating duplicate summaries",
+        "-Reworked deployment for compliance (Security Hub ECS.2/ECS.5) by moving tasks to dual-AZ private subnets with assignPublicIp=DISABLED, NAT egress, readonly root filesystem and ephemeral volumes",
+        "-Reused the existing aaron-dev ALB by adding a Target Group and a host-based rule (priority 20) on the 443 listener instead of provisioning new ALB/ACM/Route53",
+        "-Stored Notion / Slack tokens, CRON_SECRET and MEMBERS_JSON as SSM Parameter Store SecureString values injected into the task at startup",
+        "-Split IAM into execution and task roles, scoping the task role to DynamoDB/SQS, bedrock:InvokeModel, bedrock-mantle:* and transcribe:StartStreamTranscription",
+        "-Documented cost estimate of ~$57/month excluding AI usage by reusing the existing ALB and NAT, with a documented lever to switch to claude-sonnet-4-6 via environment variable",
+        "-Wrote an operations runbook covering releases, rollback by task-def revision, log tailing, DLQ redrive, secret rotation and scaling",
+        "-Iterated the task definition from rev1 to rev9, each revision tied to a specific failure such as Mantle 404, unsupported output_config, Security Hub findings and duplicate standup triggers"
+      ],
+      "fields": [
+        {
+          "after": "Cathay Financial Holdings, DDT AI",
+          "before": "AWS (ap-northeast-1 + us-east-1)",
+          "field": "context"
+        },
+        {
+          "after": "4 bullet(s)",
+          "before": "20 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "proj:voice-notion-slack-語音轉-notion-機器人雲原生架構",
+      "kind": "modified",
+      "label": "voice-notion — Slack 語音轉 Notion 機器人雲原生架構",
+      "notion_page_id": "3bf25b0d-3537-8124-974d-c8d5250cb599",
+      "section": "projects"
+    }
+  ],
+  "counts": {
+    "added": 0,
+    "modified": 1,
+    "removed": 0
+  },
+  "is_first_run": false
+}
