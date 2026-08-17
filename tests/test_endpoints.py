@@ -440,3 +440,93 @@ def test_api_publish_records_a_commit_and_creates_the_tag(
     assert ("POST", "/repos/shane01526/Resume_pipeline/git/refs") in calls, (
         f"no tag ref was created; calls were {calls}"
     )
+
+
+# --- the slash command's visibility contract ----------------------------------
+#
+# These exist because "/resume update 沒有用" turned out to be a reporting problem, not a
+# broken command: the run was created and completed, but the reply was ephemeral (nobody
+# could see a record) and a no-change run never said anything at all.
+
+
+def _slash(client: TestClient, text: str, secret: str) -> dict:
+    """POST a correctly-signed slash command and return the JSON body."""
+    import hashlib
+    import hmac
+    import time
+    from urllib.parse import urlencode
+
+    body = urlencode({"command": "/resume", "text": text, "user_id": "U0"}).encode()
+    ts = str(int(time.time()))
+    sig = (
+        "v0="
+        + hmac.new(secret.encode(), b"v0:" + ts.encode() + b":" + body, hashlib.sha256).hexdigest()
+    )
+    response = client.post(
+        "/slack/commands",
+        content=body,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Slack-Request-Timestamp": ts,
+            "X-Slack-Signature": sig,
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+@pytest.fixture
+def slack_client(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    """A client whose app has a Slack signing secret configured."""
+    signed = settings.model_copy(update={"slack_signing_secret": SecretStr("slack-test-secret")})
+    monkeypatch.setattr("pipeline.config.get_settings", lambda: signed)
+    for module in ("web.app", "web.routes_runs", "web.routes_resume", "web.slack"):
+        monkeypatch.setattr(f"{module}.get_settings", lambda: signed, raising=False)
+    with TestClient(app) as client:
+        yield client
+
+
+@pytest.mark.parametrize("text", ["update", "status", "latest", "", "banana"])
+def test_every_slash_reply_is_visible_in_the_channel(
+    slack_client: TestClient, text: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Slack only echoes the user's command into the channel for in_channel responses.
+
+    With an ephemeral reply there is no record at all — visible to one person, gone on
+    reload, nothing showing the command ran. That is why it read as "the command did
+    nothing".
+    """
+
+    async def noop(*_a: object, **_k: object) -> None:
+        return None
+
+    monkeypatch.setattr("web.slack._start_run", noop)
+
+    payload = _slash(slack_client, text, "slack-test-secret")
+
+    assert payload["response_type"] == "in_channel", f"{text or '(no args)'} replied privately"
+    assert payload["text"]
+
+
+def test_update_ack_does_not_promise_a_preview(
+    slack_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The old ack said "完成後會通知你預覽", which is false when nothing changed — and that
+    broken promise is what made the command look dead."""
+
+    async def noop(*_a: object, **_k: object) -> None:
+        return None
+
+    monkeypatch.setattr("web.slack._start_run", noop)
+
+    text = _slash(slack_client, "update", "slack-test-secret")["text"]
+
+    assert "沒變更也會回報" in text
+
+
+def test_unknown_subcommand_lists_the_valid_ones(slack_client: TestClient) -> None:
+    """So a typo like `/resume lastest` teaches you the right spelling."""
+    text = _slash(slack_client, "lastest", "slack-test-secret")["text"]
+
+    for valid in ("update", "status", "latest"):
+        assert valid in text

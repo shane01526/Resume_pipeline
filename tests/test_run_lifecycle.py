@@ -408,3 +408,79 @@ class _DictStorage(Storage):
 
     def walk(self, prefix: str) -> list[str]:
         return sorted(k for k in self._data if k.startswith(prefix))
+
+
+# --- no-change notification: manual answers, scheduled stays quiet -------------
+
+
+async def _run_with_no_changes(store: RunStore, trigger: Trigger, monkeypatch) -> list[str]:
+    """Drive a run whose Notion content matches the approved snapshot. Returns Slack texts.
+
+    Everything before the diff is stubbed: this asserts the notification decision, not the
+    pipeline. The approved snapshot is set to exactly what stage 4 returns, which is how a
+    real no-change run arises.
+    """
+    import json
+
+    from pipeline import runner as runner_module
+    from pipeline.models import Resume
+
+    fixture = Path(__file__).parent / "fixtures" / "resume.sample.json"
+    resume = Resume.model_validate_json(fixture.read_text(encoding="utf-8"))
+    store.save_approved_snapshot(json.loads(resume.model_dump_json(by_alias=True)))
+
+    posted: list[str] = []
+
+    async def fake_post(_settings, text, blocks=None):  # noqa: ANN001, ANN202, ARG001
+        posted.append(text)
+
+    class _FakeReader:
+        async def __aenter__(self):  # noqa: ANN202
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def read_resume(self):  # noqa: ANN202
+            return resume
+
+    async def fake_translate(res, _reader, _settings):  # noqa: ANN001, ANN202
+        return res
+
+    monkeypatch.setattr("web.slack.post_message", fake_post)
+    monkeypatch.setattr("pipeline.notion_client.NotionReader", lambda _s: _FakeReader())
+    monkeypatch.setattr("pipeline.translate.translate_resume", fake_translate)
+    # Stages 1-3 need Notion and an LLM; irrelevant to the notification decision.
+    monkeypatch.setattr("pipeline.ingest.ingest_sources", lambda *_a, **_k: [])
+
+    run = store.create(trigger)
+    await runner_module.execute_run(run.id, store)
+
+    reloaded = store.load(run.id)
+    assert reloaded is not None
+    assert reloaded.status is RunStatus.NO_CHANGE, f"expected No Change, got {reloaded.status}"
+    return posted
+
+
+async def test_manual_no_change_run_reports_back(
+    store: RunStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`/resume update` with nothing to change must say so.
+
+    Silence in answer to a direct request is indistinguishable from the command being
+    broken — which is exactly how it was reported.
+    """
+    posted = await _run_with_no_changes(store, Trigger.MANUAL, monkeypatch)
+
+    assert len(posted) == 1, f"expected one message, got {posted}"
+    assert "沒有需要更新" in posted[0]
+
+
+async def test_scheduled_no_change_run_stays_silent(
+    store: RunStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The original invariant, which must survive the change above: a weekly "nothing
+    changed" ping trains you to ignore the channel."""
+    posted = await _run_with_no_changes(store, Trigger.SCHEDULED, monkeypatch)
+
+    assert posted == [], f"a scheduled no-change run must not notify, but sent {posted}"

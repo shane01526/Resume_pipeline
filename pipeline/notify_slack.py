@@ -181,6 +181,23 @@ async def notify_published(run: Run, settings: Settings) -> None:
     )
 
 
+async def notify_no_change(run: Run, settings: Settings) -> None:
+    """Report that a run found nothing to change.
+
+    Only sent for runs *you* asked for. A scheduled run stays silent, because a weekly
+    "nothing changed" ping trains you to ignore the channel — but silence in answer to a
+    direct `/resume update` is indistinguishable from the command being broken, which is
+    exactly how it was read.
+    """
+    from web.slack import post_message
+
+    await post_message(
+        settings,
+        f"✅ 已檢查完畢 `{run.id}`：Notion 的已核准內容與目前發布的履歷一致，沒有需要更新的地方。\n"
+        "若你剛在 Notion 改了東西，記得把該筆改成 `Approved` 並勾 `Include in Resume`。",
+    )
+
+
 async def notify_expired(run: Run, settings: Settings) -> None:
     """Tell you a run timed out, rather than letting it vanish silently."""
     from web.slack import post_message

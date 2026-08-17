@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from pathlib import Path
 
 from pipeline.config import Settings
@@ -26,8 +27,9 @@ TEXT_SUFFIXES = frozenset({".md", ".txt", ".markdown", ".rst"})
 DOCX_SUFFIXES = frozenset({".docx"})
 PPTX_SUFFIXES = frozenset({".pptx"})
 PDF_SUFFIXES = frozenset({".pdf"})
+HTML_SUFFIXES = frozenset({".html", ".htm"})
 
-SUPPORTED = TEXT_SUFFIXES | DOCX_SUFFIXES | PPTX_SUFFIXES | PDF_SUFFIXES
+SUPPORTED = TEXT_SUFFIXES | DOCX_SUFFIXES | PPTX_SUFFIXES | PDF_SUFFIXES | HTML_SUFFIXES
 
 # A single source over ~200k characters is almost certainly a book, a transcript dump, or
 # a mis-saved binary. Truncating keeps one bad file from consuming a run's whole budget.
@@ -143,6 +145,8 @@ def _load(path: Path, digest: str) -> Source | None:
         text = _docx_text(path)
     elif suffix in PPTX_SUFFIXES:
         text = _pptx_text(path)
+    elif suffix in HTML_SUFFIXES:
+        text = _html_text(path)
     else:  # pragma: no cover - guarded by the caller
         return None
 
@@ -172,6 +176,87 @@ def _docx_text(path: Path) -> str:
             if cells := [cell.text.strip() for cell in row.cells if cell.text.strip()]:
                 parts.append(" | ".join(cells))
     return "\n".join(parts)
+
+
+#: Tags whose *content* is code or styling, never prose. Their text must never reach the
+#: model: a saved web page carries tens of kilobytes of minified JavaScript, and an LLM
+#: handed that will happily invent a "project" out of variable names.
+_HTML_SKIP_CONTENT = frozenset({"script", "style", "noscript", "template", "svg"})
+
+#: Tags that end a line. Without these, `<p>A</p><p>B</p>` extracts as "AB" — two unrelated
+#: sentences fused into one nonsense phrase, which is worse than losing either.
+_HTML_BLOCK_TAGS = frozenset(
+    {
+        "address", "article", "aside", "blockquote", "br", "div", "dd", "dl", "dt",
+        "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4",
+        "h5", "h6", "header", "hr", "li", "main", "nav", "ol", "p", "pre", "section",
+        "table", "tbody", "thead", "title", "tr", "ul",
+    }
+)  # fmt: skip
+
+#: Table cells are separated rather than newline-terminated, matching `_docx_text`: a row
+#: reads as one record, which is how deliverables tables are usually written.
+_HTML_CELL_TAGS = frozenset({"td", "th"})
+
+
+class _TextExtractor(HTMLParser):
+    """Collect readable text from HTML, dropping code and styling.
+
+    Deliberately lenient: real files here are "Save as HTML" output from Word, Notion, or a
+    browser, which is full of unbalanced tags, conditional comments and vendor namespaces
+    (`<o:p>`). An unknown tag is simply not a block tag, so it is ignored rather than fatal.
+    """
+
+    def __init__(self) -> None:
+        # convert_charrefs (the default) turns &amp; into & for us.
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        # A depth counter, not a boolean: nested <script> inside <script> is legal enough in
+        # the wild, and a boolean would flip back on the first close and leak the remainder.
+        self._skip_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: object) -> None:  # noqa: ARG002
+        if tag in _HTML_SKIP_CONTENT:
+            self._skip_depth += 1
+        elif tag in _HTML_CELL_TAGS:
+            self.parts.append(" | ")
+        elif tag in _HTML_BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in _HTML_SKIP_CONTENT:
+            self._skip_depth = max(0, self._skip_depth - 1)
+        elif tag in _HTML_BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        if self._skip_depth == 0:
+            self.parts.append(data)
+
+
+def _html_text(path: Path) -> str:
+    """Readable text from an HTML file.
+
+    Uses the standard library rather than an HTML library: the job is to strip markup, and
+    `HTMLParser` does that without adding a dependency to a service whose image is already
+    3.8GB. `<title>` is kept because it usually names the document.
+    """
+    parser = _TextExtractor()
+    # errors="replace": a page saved as Big5 or with a mislabelled charset must not abort a
+    # run. A few replacement characters cost one bullet; an exception costs the whole file.
+    parser.feed(path.read_text(encoding="utf-8", errors="replace"))
+    parser.close()
+
+    # Collapse the whitespace the markup left behind: strip each line, drop empties, and
+    # keep at most one blank line so paragraph structure survives for the model.
+    lines = [line.strip(" \t|") for line in "".join(parser.parts).splitlines()]
+    out: list[str] = []
+    for line in lines:
+        if line:
+            out.append(" ".join(line.split()))
+        elif out and out[-1]:
+            out.append("")
+    return "\n".join(out).strip()
 
 
 def _pptx_text(path: Path) -> str:

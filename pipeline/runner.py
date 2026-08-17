@@ -25,7 +25,7 @@ from pathlib import Path
 
 from pipeline.config import Settings, get_settings
 from pipeline.models import Resume
-from pipeline.state import Run, RunStatus, RunStore
+from pipeline.state import Run, RunStatus, RunStore, Trigger
 
 log = logging.getLogger(__name__)
 
@@ -114,12 +114,22 @@ async def _execute(run: Run, store: RunStore, settings: Settings) -> None:
     store.save(run)
 
     if diff.counts.total == 0 and previous is not None:
-        # No diff, no notification. A weekly "nothing changed" ping trains you to ignore
-        # the channel, which defeats the purpose of the notification.
         log.info("no changes since the last approved resume")
         run.status = RunStatus.NO_CHANGE
         store.save(run)
         store.discard(run.id)
+
+        # A *scheduled* run stays silent: a weekly "nothing changed" ping trains you to
+        # ignore the channel, which defeats the purpose of the notification.
+        #
+        # A *manual* run must answer. You are waiting on it, and silence is
+        # indistinguishable from the command having failed — which is how `/resume update`
+        # was read. The invariant that matters ("no diff, no unprompted noise") is kept;
+        # what changes is that a direct question now gets a direct answer.
+        if run.trigger is Trigger.MANUAL:
+            from pipeline.notify_slack import notify_no_change
+
+            await notify_no_change(run, settings)
         return
 
     # --- Stage 6: render ----------------------------------------------------

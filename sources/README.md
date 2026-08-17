@@ -10,7 +10,11 @@
 | `.pdf` | 直接送 LLM（原生 PDF 理解，含掃描件的版面） |
 | `.docx` | 先用 python-docx 轉純文字 |
 | `.pptx` | 先用 python-pptx 抽投影片文字 |
+| `.html` / `.htm` | 用標準庫抽文字：丟掉 `<script>` / `<style>`，表格用 `\|` 串成一列 |
 | `.md` / `.txt` | 直接讀 |
+
+> `.html` 適合「網頁另存」「Word 另存為 HTML」「Confluence／Notion 匯出」這類檔案。
+> JS 與 CSS 不會進到 LLM —— 那些內容只會讓模型從變數名稱裡編出不存在的專案。
 
 ## 怎麼用
 

@@ -89,22 +89,32 @@ async def slash_command(request: Request, background: BackgroundTasks) -> JSONRe
 
     if subcommand == "update":
         background.add_task(_start_run, settings)
-        return _ephemeral("🔄 已開始更新履歷，完成後會通知你預覽。")
+        # Deliberately does not promise a preview. A run with no changes never produces one,
+        # and the old wording ("完成後會通知你預覽") made `/resume update` look broken every
+        # time nothing had changed. Both outcomes now post a message — see
+        # pipeline/runner.py's no-change branch.
+        return _in_channel("🔄 已開始更新履歷。有變更會送審核連結，沒變更也會回報。")
 
     if subcommand == "latest":
-        return _ephemeral(_latest_links(settings))
+        return _in_channel(_latest_links(settings))
 
     if subcommand == "status":
-        return _ephemeral(_status_text(settings))
+        return _in_channel(_status_text(settings))
 
-    return _ephemeral(
+    return _in_channel(
         f"未知的指令 `{subcommand}`。可用：`/resume update`、`/resume status`、`/resume latest`"
     )
 
 
-def _ephemeral(text: str) -> JSONResponse:
-    """A reply only the invoking user sees."""
-    return JSONResponse({"response_type": "ephemeral", "text": text})
+def _in_channel(text: str) -> JSONResponse:
+    """A reply the whole channel sees, including the command that triggered it.
+
+    `in_channel` rather than `ephemeral` because Slack only echoes the user's slash command
+    into the channel for in-channel responses. With an ephemeral reply there is no record at
+    all: the answer is visible to one person, vanishes on reload, and nothing shows that the
+    command was ever run — which reads as "the command did nothing".
+    """
+    return JSONResponse({"response_type": "in_channel", "text": text})
 
 
 async def _start_run(settings: Settings) -> None:

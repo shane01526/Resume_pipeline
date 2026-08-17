@@ -307,3 +307,163 @@ def test_changed_source_is_refetched_on_a_reused_instance(tmp_path: Path) -> Non
 
     assert store.materialize_sources() == 1
     assert (settings.sources_dir / "a.md").read_bytes() == b"version two, revised"
+
+
+# --- HTML sources -------------------------------------------------------------
+#
+# Saved web pages are the messiest thing this folder accepts: "Save as HTML" from Word or a
+# browser carries minified JavaScript, CSS, vendor namespaces (<o:p>) and conditional
+# comments. Everything below is about not feeding that to the model, which would happily
+# invent a "project" out of variable names.
+
+SAVED_PAGE = """<!DOCTYPE html>
+<html><head><title>Internship Closing Report</title>
+<style>.hdr{color:red}</style>
+<script>var tracking={id:"abc"};function boot(){console.log("delivered")}</script>
+</head><body>
+<h1>AI News Agent &amp; RAG Pipeline</h1>
+<p>Built a routing chatbot.</p>
+<p>Cut ETL runtime by 40%.</p>
+<table>
+<tr><th>Deliverable</th><th>Status</th></tr>
+<tr><td>BRD agent</td><td>Shipped &lt;v1.0&gt;</td></tr>
+</table>
+<noscript>Enable JavaScript</noscript>
+</body></html>"""
+
+
+def test_html_is_ingested(workspace: tuple[Settings, RunStore]) -> None:
+    settings, store = workspace
+    write(settings, "report.html", SAVED_PAGE)
+
+    sources = ingest_sources(store, settings)
+
+    assert [s.name for s in sources] == ["report.html"]
+    assert "Built a routing chatbot." in (sources[0].text or "")
+
+
+def test_htm_extension_also_works(workspace: tuple[Settings, RunStore]) -> None:
+    """Windows "Save as" still produces .htm."""
+    settings, store = workspace
+    write(settings, "old.htm", "<html><body><p>Ran a pilot study.</p></body></html>")
+
+    assert [s.name for s in ingest_sources(store, settings)] == ["old.htm"]
+
+
+def test_script_and_style_content_never_reaches_the_model(
+    workspace: tuple[Settings, RunStore],
+) -> None:
+    """The single most important property of HTML extraction."""
+    settings, store = workspace
+    write(settings, "report.html", SAVED_PAGE)
+
+    text = ingest_sources(store, settings)[0].text or ""
+
+    for leaked in ("console.log", "var tracking", "color:red", "boot()"):
+        assert leaked not in text, f"{leaked!r} leaked into the extracted text"
+    # <noscript> is fallback copy for a browser, not content about the author.
+    assert "Enable JavaScript" not in text
+
+
+def test_block_tags_keep_sentences_apart(workspace: tuple[Settings, RunStore]) -> None:
+    """Without newlines on block tags, two unrelated sentences fuse into one nonsense
+    phrase — worse than losing either, because the model treats it as a single claim.
+
+    The markup here has NO whitespace between the tags, which is what Word exports and
+    minified pages actually look like. An earlier version of this test used a document with
+    newlines between the `<p>` elements, so the source whitespace did the separating and the
+    test passed even with block-tag handling removed entirely — verified by removing it.
+    """
+    settings, store = workspace
+    write(
+        settings,
+        "minified.html",
+        "<html><body><p>Built a routing chatbot.</p><p>Cut ETL runtime by 40%.</p>"
+        "<div>Owned the deploy.</div><ul><li>First</li><li>Second</li></ul></body></html>",
+    )
+
+    text = ingest_sources(store, settings)[0].text or ""
+
+    assert "chatbot.Cut" not in text, "adjacent <p> blocks fused into one sentence"
+    assert "40%.Owned" not in text
+    assert "FirstSecond" not in text, "adjacent <li> items fused"
+    assert "Built a routing chatbot." in text
+    assert "Cut ETL runtime by 40%." in text
+
+
+def test_entities_are_decoded(workspace: tuple[Settings, RunStore]) -> None:
+    settings, store = workspace
+    write(settings, "report.html", SAVED_PAGE)
+
+    text = ingest_sources(store, settings)[0].text or ""
+
+    assert "AI News Agent & RAG Pipeline" in text
+    assert "Shipped <v1.0>" in text
+    assert "&amp;" not in text
+
+
+def test_table_cells_are_joined_like_docx(workspace: tuple[Settings, RunStore]) -> None:
+    """A deliverables table is often where the concrete detail lives, and a row reads as one
+    record. Same separator as `_docx_text` so both sources look alike to the model."""
+    settings, store = workspace
+    write(settings, "report.html", SAVED_PAGE)
+
+    text = ingest_sources(store, settings)[0].text or ""
+
+    assert "BRD agent | Shipped <v1.0>" in text
+
+
+def test_html_with_no_prose_is_skipped(workspace: tuple[Settings, RunStore]) -> None:
+    """A page that is only markup and scripts yields nothing, and must be skipped rather
+    than filed as an empty source."""
+    settings, store = workspace
+    write(
+        settings,
+        "empty.html",
+        "<html><head><script>var a=1</script><style>p{}</style></head><body></body></html>",
+    )
+
+    assert ingest_sources(store, settings) == []
+
+
+def test_nested_script_does_not_swallow_the_rest_of_the_page(
+    workspace: tuple[Settings, RunStore],
+) -> None:
+    """A depth counter, not a boolean: with a flag, the first `</script>` flips skipping off
+    (or a stray close flips it on) and the remainder of the document is lost or leaked."""
+    settings, store = workspace
+    write(
+        settings,
+        "weird.html",
+        "<html><body><script>var a=1</script>"
+        "<p>Led the migration.</p>"
+        "<script>var b=2</script>"
+        "<p>Wrote the runbook.</p></body></html>",
+    )
+
+    text = ingest_sources(store, settings)[0].text or ""
+
+    assert "Led the migration." in text
+    assert "Wrote the runbook." in text
+    assert "var a=1" not in text
+    assert "var b=2" not in text
+
+
+def test_malformed_html_still_yields_text(workspace: tuple[Settings, RunStore]) -> None:
+    """Word and Confluence exports are not well-formed. Unclosed tags and vendor namespaces
+    must degrade to "some text extracted", never to an exception."""
+    settings, store = workspace
+    write(
+        settings,
+        "word.html",
+        "<html><body><p>Shipped the pilot"
+        "<div><o:p>Delivered on time</o:p>"
+        "<!--[if gte mso 9]><xml><o:Settings/></xml><![endif]-->"
+        "<b>Unclosed bold</body>",
+    )
+
+    text = ingest_sources(store, settings)[0].text or ""
+
+    assert "Shipped the pilot" in text
+    assert "Delivered on time" in text
+    assert "o:Settings" not in text
