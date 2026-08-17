@@ -147,8 +147,7 @@
       "bullets": [
         "Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace); BU Agent serves as the BU's single entry point (two modes) to draft v1.0 BRD, then hands off structured deliverables to the downstream BA Agent.",
         "Explore mode: 5-stage question bank (diverge → converge → challenge) with a live 5-dimension rubric workspace; emits a dual handoff (JSON + 200–400-word paragraph) that auto-transitions to Consult, compressing ideation to 5–10 min.",
-        "Consult mode: Step 1 auto-drafts the BRD outline from per-BU YAML templates, tagging sections auto_filled / needs_round2 / placeholder; Step 2 interviews only needs_round2 with live-preview inline edit, keeping BU interview time to 20–30 min.",
-        "Outputs v1.0 BRD + summary.json + full conversation_trace + flag_for_ba_review list; handoff notifies the BA Agent for review."
+        "Consult mode: Step 1 auto-drafts the BRD outline from per-BU YAML templates and adding status tags for each sections; Step 2 interviews only “needs_round2” tag with live-preview inline edit, keeping BU interview time to 20–30 min."
       ],
       "confidence": "High",
       "context": "Cathay Financial Holdings, DDT AI",
