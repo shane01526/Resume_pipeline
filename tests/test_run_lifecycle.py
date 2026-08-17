@@ -484,3 +484,40 @@ async def test_scheduled_no_change_run_stays_silent(
     posted = await _run_with_no_changes(store, Trigger.SCHEDULED, monkeypatch)
 
     assert posted == [], f"a scheduled no-change run must not notify, but sent {posted}"
+
+
+def test_bad_signature_is_rejected_before_the_run_is_looked_up(
+    store: RunStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Auth first, then work.
+
+    With the lookup first, an unauthenticated caller could distinguish "this run exists"
+    (403) from "it does not" (404) by status code alone, and every unsigned request cost a
+    storage read — a GitHub API call on the deployed service.
+    """
+    from web import routes_runs
+
+    loads: list[str] = []
+    original = RunStore.load
+
+    def counting_load(self: RunStore, run_id: str):  # noqa: ANN202
+        loads.append(run_id)
+        return original(self, run_id)
+
+    monkeypatch.setattr(RunStore, "load", counting_load)
+
+    run = store.create(Trigger.MANUAL)
+    run.status = RunStatus.PENDING_APPROVAL
+    store.save(run)
+    loads.clear()
+
+    import asyncio
+
+    from fastapi import BackgroundTasks, HTTPException
+
+    monkeypatch.setattr(routes_runs, "get_settings", lambda: store._settings)  # noqa: SLF001
+    with pytest.raises(HTTPException) as caught:
+        asyncio.run(routes_runs._decide(run.id, "approve", "0" * 32, BackgroundTasks()))  # noqa: SLF001
+
+    assert caught.value.status_code == 403
+    assert loads == [], "the run was loaded despite an invalid signature"

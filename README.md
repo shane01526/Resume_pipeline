@@ -48,7 +48,7 @@ https://<你的-cloud-run-網址>/resume/en.docx         .../resume/zh.docx
 **兩個都要，順序是「放本機 → push 上 GitHub」。**
 
 ```powershell
-# 1. 把文件複製進本機的 sources\（.pdf / .docx / .pptx / .md / .txt）
+# 1. 把文件複製進本機的 sources\（.pdf / .docx / .pptx / .html / .md / .txt）
 # 2. 推上去
 .\scripts\push_sources.ps1
 ```
@@ -79,7 +79,10 @@ Notion 改成 `Approved` 並勾 `Include in Resume`。
    只會在那一筆下留 Notion 留言建議，永遠不發 PATCH（`pipeline/reconcile.py`，
    由 `tests/test_reconcile.py` 守住）。
 
-另外：**沒有差異就不發通知**。每週固定收到一則「沒有變化」會訓練你忽略這個頻道。
+另外：**定時執行沒有差異就不發通知**。每週固定收到一則「沒有變化」會訓練你忽略這個頻道。
+
+但**手動的 `/resume update` 一定會回報**，有沒有變更都會。你主動問的時候，沉默跟壞掉分不出來 ——
+這正是先前「打了 `/resume update` 好像沒用」的真正原因（run 其實跑完了，只是沒有差異所以沒出聲）。
 
 ---
 
@@ -181,7 +184,21 @@ GitHub Actions，Secret Manager 不會再顯示第二次）：
 | Slash Commands → Create New Command | Command `/resume`，Request URL `<URL>/slack/commands` |
 | Interactivity & Shortcuts | 打開開關，Request URL `<URL>/slack/interactions` |
 
-三個子命令（`update` / `status` / `latest`）共用同一個 URL，不用分別註冊。
+**只註冊一個 slash command，名稱就是 `resume`**（Slack 介面裡不用打斜線）。三個子命令
+`update` / `status` / `latest` 是同一個指令的參數，共用同一個 Request URL —— 不要註冊三個。
+
+| 你打的 | 做什麼 |
+| --- | --- |
+| `/resume update` | 立刻跑一次。有變更 → 送審核連結；沒變更 → 也會回報 |
+| `/resume status` | 最近幾次執行的狀態，含待核准的連結 |
+| `/resume latest` | 已發布履歷的六個下載連結 |
+| `/resume` | 等同 `status` |
+| 打錯字（例如 `lastest`） | 回覆會列出三個可用指令 |
+
+**回覆是頻道可見（`in_channel`）**，所以你打的指令與回覆都會留在頻道裡。
+先前是 `ephemeral` —— 只有自己看得到、重載就消失，而且 Slack 不會把指令本身顯示出來，
+所以「打了沒反應」其實是沒有任何記錄可看。
+
 只呼叫 `chat.postMessage`，所以不需要 `files:write` — PDF 掛在 Notion 與下載連結。
 
 **`SLACK_DM_CHANNEL` 可以是兩種東西**，需要的 scope 不同：
@@ -412,7 +429,9 @@ B 請求要讀得到」。`github` backend 解決這件事，代價是每次操�
 | --- | --- |
 | Notion 讀取回 404 | integration 沒加到 Resume Master 頁面（見上面第 1 步第 2 點） |
 | 履歷是空的 / run 失敗說沒內容 | Notion 沒有任何 `Status = Approved` **且** 勾了 `Include in Resume` 的 row |
-| 沒收到 Slack 通知 | 可能真的沒有差異（設計如此）。`/resume status` 可以確認 |
+| 沒收到 Slack 通知 | 定時執行且沒有差異時，設計上不發（避免每週噪音）。手動 `/resume update` 一定會回報 |
+| `/resume update` 好像沒反應 | 先確認回覆有出現在頻道；若完全沒有回覆，是 Request URL 或 Signing Secret 的問題 |
+| 丟進 `sources/` 的檔案被忽略 | 副檔名不在支援清單（見 `sources/README.md`），或忘記 push —— 服務讀的是 repo，不是你的硬碟 |
 | `/resume/en.pdf` 回 404 | 還沒核准過任何 run |
 | 少了 `.latex.pdf` | 該環境沒有 Tectonic；`/health` 會列出缺哪些工具 |
 | diff 頁沒有版面比對圖 | 該環境沒有 `pdftoppm` |

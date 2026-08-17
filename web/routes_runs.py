@@ -214,13 +214,19 @@ async def _decide(
     run_id: str, action: str, token: str, background: BackgroundTasks
 ) -> JSONResponse:
     settings = get_settings()
-    store = RunStore(settings)
 
+    # Signature first, then the lookup. The other order let an unauthenticated caller tell
+    # "this run exists" (403) from "it does not" (404) by the status code alone, and made
+    # every unsigned request cost a GitHub API read. Neither is severe — run ids are
+    # timestamps and acting still needs the token — but checking auth before doing work is
+    # the cheaper habit.
+    if not verify(run_id, action, token, settings):
+        raise HTTPException(403, "invalid signature")
+
+    store = RunStore(settings)
     run = store.load(run_id)
     if run is None:
         raise HTTPException(404, f"no such run: {run_id}")
-    if not verify(run_id, action, token, settings):
-        raise HTTPException(403, "invalid signature")
 
     # Idempotent: a double-tap on the Slack button, or a link opened twice, must not
     # publish twice.
