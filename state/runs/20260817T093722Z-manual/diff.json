@@ -1,0 +1,49 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Built a Slack bot that converts mp4 work oral report into confirmable Notion pages and tasks, plus a daily automated standup summary, Re-architected a single-instance Next.js service into a cloud-native ECS Fargate deployment with DynamoDB, SQS and EventBridge to enable horizontal scaling and zero-data-loss rolling updates, Split webhook handling so web verified signatures, enqueued to SQS and returned 200 within 3s while worker handled 30–120s transcription and LLM work, Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on persistent worker, cold start/ffmpeg, HA, ops cost and private-subnet criteria",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "Cathay Financial Holdings, DDT AI",
+          "before": null,
+          "field": "context"
+        },
+        {
+          "after": "yes",
+          "before": null,
+          "field": "highlight"
+        },
+        {
+          "after": "Voice-Notion — Cloud-First Standup Assistant",
+          "before": null,
+          "field": "name"
+        }
+      ],
+      "key": "proj:voice-notion-cloud-first-standup-assistant",
+      "kind": "added",
+      "label": "Voice-Notion — Cloud-First Standup Assistant",
+      "notion_page_id": "3bf25b0d-3537-8124-974d-c8d5250cb599",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [],
+      "key": "proj:voice-notion-slack-語音轉-notion-機器人雲原生架構",
+      "kind": "removed",
+      "label": "voice-notion — Slack 語音轉 Notion 機器人雲原生架構",
+      "notion_page_id": "3bf25b0d-3537-8124-974d-c8d5250cb599",
+      "section": "projects"
+    }
+  ],
+  "counts": {
+    "added": 1,
+    "modified": 0,
+    "removed": 1
+  },
+  "is_first_run": false
+}
