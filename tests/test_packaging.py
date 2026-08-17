@@ -247,23 +247,17 @@ def test_unknown_renderer_name_is_rejected() -> None:
         _settings_with_renderers("html,latext")
 
 
-def test_deploy_script_disables_msys_path_conversion() -> None:
-    """Git Bash must not rewrite the container's POSIX paths into Windows ones.
+def test_deploy_script_passes_no_absolute_container_paths() -> None:
+    """`--set-env-vars` must carry no absolute path, because Git Bash rewrites them.
 
-    Without this, `BEDROCK_KEY_FILE=/tmp/bedrock_key.json` reached Cloud Run as
-    `C:/Users/<you>/AppData/Local/Temp/bedrock_key.json`. Inside the Linux container that is
-    a *relative* path, so it resolved under /app — the repository — and llm_key.py's guard
-    correctly refused to write a credential there. POST /admin/llm-key answered 400 and
-    in-place rotation was dead, with nothing failing at deploy time to say so.
+    `BEDROCK_KEY_FILE=/tmp/bedrock_key.json` reached Cloud Run as
+    `C:/Users/<you>/AppData/Local/Temp/bedrock_key.json`. On Linux that is a *relative* path,
+    so it resolved under /app — the repository — and llm_key.py refused to write a credential
+    where a public repo would publish it. POST /admin/llm-key answered 400 and in-place key
+    rotation was dead, with nothing failing at deploy time to say so.
+
+    Disabling the conversion is NOT the fix; see the next test. Passing no absolute path is.
     """
-    script = (REPO_ROOT / "scripts" / "deploy_cloudrun.sh").read_text(encoding="utf-8")
-
-    assert "MSYS_NO_PATHCONV=1" in script
-    assert 'MSYS2_ARG_CONV_EXCL="*"' in script
-
-
-def test_container_paths_in_the_deploy_script_are_posix() -> None:
-    """Every path handed to the container must be POSIX, whatever OS deploys it."""
     import re
 
     script = (REPO_ROOT / "scripts" / "deploy_cloudrun.sh").read_text(encoding="utf-8")
@@ -271,8 +265,33 @@ def test_container_paths_in_the_deploy_script_are_posix() -> None:
     assert block
 
     for name, value in re.findall(r'"([A-Z_]+)=([^"]*)"', block.group(1)):
+        assert not value.startswith("/"), f"{name} passes an absolute path: {value}"
         assert not re.match(r"^[A-Za-z]:[\/]", value), f"{name} carries a Windows path: {value}"
         assert "\\" not in value, f"{name} carries a backslash: {value}"
+
+
+def test_deploy_script_does_not_disable_msys_path_conversion() -> None:
+    """The attempted fix that broke gcloud outright, kept out by a test.
+
+    MSYS_NO_PATHCONV makes gcloud.cmd hand a mangled `C:\\c\\Users\\...\\gcloud.py` to
+    python.exe, which cannot open it. The script then died on its first gcloud call with an
+    empty PROJECT and no other output at all.
+    """
+    script = (REPO_ROOT / "scripts" / "deploy_cloudrun.sh").read_text(encoding="utf-8")
+
+    for line in script.splitlines():
+        if line.strip().startswith("#"):
+            continue  # the comment explaining why is expected to name them
+        assert "MSYS_NO_PATHCONV" not in line, "this breaks gcloud.cmd"
+        assert "MSYS2_ARG_CONV_EXCL" not in line, "this breaks gcloud.cmd"
+
+
+def test_key_cache_default_is_the_platform_temp_dir() -> None:
+    """Which is /tmp inside the container — the value the script used to pass by hand."""
+    import tempfile
+
+    expected = Path(tempfile.gettempdir()) / "bedrock_key.json"
+    assert Settings(_env_file=None).bedrock_key_file == expected
 
 
 def test_key_cache_default_is_outside_the_repo() -> None:

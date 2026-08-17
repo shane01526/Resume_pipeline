@@ -12,23 +12,13 @@
 # Requirements: gcloud CLI, authenticated (`gcloud auth login`), with a project selected.
 set -euo pipefail
 
-# Git Bash rewrites POSIX-looking arguments into Windows paths before handing them to a
-# native .exe/.cmd. gcloud is native, so `BEDROCK_KEY_FILE=/tmp/bedrock_key.json` was
-# delivered to Cloud Run as
-#   BEDROCK_KEY_FILE=C:/Users/<you>/AppData/Local/Temp/bedrock_key.json
-# — a Windows path inside a Linux container. It resolved to /app/C:/Users/... , i.e. *inside
-# the repository*, so pipeline/llm_key.py's guard refused to write a credential there and
-# POST /admin/llm-key started answering 400. In-place key rotation was completely broken.
-#
-# It only appeared after BEDROCK_API_KEY stopped being passed here: with that long base64
-# value at the end of the joined string, MSYS's heuristic did not treat the argument as a
-# path list. Removing it changed the shape and the conversion kicked in — which is why this
-# has to be disabled explicitly rather than left to luck.
-#
-# Safe to set globally: every other path this script passes (`--source .`, `.env`,
-# `--data-file=-`) is relative or not a path at all.
-export MSYS_NO_PATHCONV=1
-export MSYS2_ARG_CONV_EXCL="*"
+# NOTE: do NOT set MSYS_NO_PATHCONV / MSYS2_ARG_CONV_EXCL here. Git Bash's path conversion
+# mangles POSIX paths passed to native programs, so it is tempting to turn off — but
+# gcloud.cmd *depends* on it: the wrapper hands `/c/Users/.../gcloud.py` to python.exe, and
+# with conversion disabled python receives `C:\c\Users\...` and dies with
+#   can't open file 'C:\c\Users\...\gcloud.py': [Errno 2] No such file or directory
+# The script then failed instantly with an empty PROJECT. The fix for the conversion problem
+# is to pass no absolute container paths at all — see the env_vars block below.
 
 SERVICE="${SERVICE:-resume-pipeline}"
 REGION="${REGION:-asia-east1}"          # Taipei — closest to you and to Notion's edge
@@ -236,8 +226,17 @@ env_vars=(
     "APPROVAL_TIMEOUT_HOURS=72"
     "LLM_PROVIDER=bedrock"
     "AWS_REGION=${AWS_REGION:-us-east-1}"
-    # Outside the repo on purpose: state/ and output/ are committed to a public repo.
-    "BEDROCK_KEY_FILE=/tmp/bedrock_key.json"
+    # BEDROCK_KEY_FILE is deliberately NOT set. Its default is
+    # `Path(tempfile.gettempdir()) / "bedrock_key.json"`, which is exactly /tmp/bedrock_key.json
+    # inside the container — and passing it explicitly is actively harmful from Git Bash:
+    # `/tmp/bedrock_key.json` was converted to
+    #   C:/Users/<you>/AppData/Local/Temp/bedrock_key.json
+    # which, being relative on Linux, resolved to /app/C:/Users/... — inside the repository.
+    # llm_key.py then refused to write a credential there (correctly, since state/ and output/
+    # are committed to a public repo) and POST /admin/llm-key answered 400, so in-place key
+    # rotation was dead with nothing failing at deploy time to say so.
+    #
+    # Keep this array free of absolute paths; a test enforces it.
 )
 [ -n "$slack_channel" ] && env_vars+=("SLACK_DM_CHANNEL=${slack_channel}")
 
