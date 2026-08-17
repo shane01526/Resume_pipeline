@@ -1,0 +1,29 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [
+        "-Consult mode: Step 1 auto-drafts the BRD outline from per-BU YAML templates, tagging sections auto_filled / needs_round2 / placeholder; Step 2 interviews only needs_round2 with live-preview inline edit, keeping BU interview time to 20–30 min.",
+        "-Outputs v1.0 BRD + summary.json + full conversation_trace + flag_for_ba_review list; handoff notifies the BA Agent for review.",
+        "+Consult mode: Step 1 auto-drafts the BRD outline from per-BU YAML templates and adding status tags for each sections; Step 2 interviews only “needs_round2” tag with live-preview inline edit, keeping BU interview time to 20–30 min."
+      ],
+      "fields": [
+        {
+          "after": "3 bullet(s)",
+          "before": "4 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "proj:bu-agent-web-based-two-mode-brd-co-drafting-assistant",
+      "kind": "modified",
+      "label": "BU Agent — Web-Based Two-Mode BRD Co-Drafting Assistant",
+      "notion_page_id": "3b525b0d-3537-810f-a296-d218618fde1d",
+      "section": "projects"
+    }
+  ],
+  "counts": {
+    "added": 0,
+    "modified": 1,
+    "removed": 0
+  },
+  "is_first_run": false
+}
