@@ -12,6 +12,20 @@ key passed as an argument lands in your shell history.
 Short-term Bedrock keys expire within 12 hours, so this is a routine command, not a
 one-off. It updates the running service over HTTP rather than triggering a redeploy —
 a Cloud Run revision takes minutes and the key would expire again the same day.
+
+One rotation writes the key to **four** places, because each covers a different lifetime:
+
+    in-process override   this shell / this container, immediately
+    /tmp cache file       survives a restart of the *same* instance
+    .env                  what the next `deploy_cloudrun.sh` seeds
+    Secret Manager        what every *future* Cloud Run instance reads at startup
+
+The last one is what makes rotation durable. `/admin/llm-key` only reaches the instance
+that receives the request, so after Cloud Run scaled to zero the next instance fell back
+to the deploy-time value and a run failed with "Signature expired" hours after a
+successful rotation. Adding a Secret Manager version fixes that without a new revision:
+`--set-secrets NAME=NAME:latest` is resolved per instance start, verified on the deployed
+service (same revision, fresh instance, new value).
 """
 
 from __future__ import annotations
@@ -19,6 +33,8 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
+import os
+import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -116,6 +132,90 @@ def _dotenv_key() -> str:
     return ""
 
 
+SECRET_NAME = "BEDROCK_API_KEY"
+
+#: Where the Windows installer puts gcloud. Git Bash's PATH does not include it, so
+#: `shutil.which("gcloud")` fails on a machine where gcloud is installed and authenticated.
+#: Same list as scripts/deploy_cloudrun.sh — keep them in step.
+_GCLOUD_CANDIDATES = (
+    r"{LOCALAPPDATA}\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd",
+    r"C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd",
+    r"C:\Program Files\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd",
+)
+
+
+def _gcloud() -> str | None:
+    """Path to the gcloud CLI, or None."""
+    import shutil
+
+    if found := shutil.which("gcloud"):
+        return found
+    local_appdata = os.environ.get("LOCALAPPDATA", "")
+    for candidate in _GCLOUD_CANDIDATES:
+        path = Path(candidate.format(LOCALAPPDATA=local_appdata))
+        if path.is_file():
+            return str(path)
+    return None
+
+
+def push_secret_manager(key: str) -> bool:
+    """Add a new Secret Manager version, so future Cloud Run instances get this key.
+
+    This is the difference between a rotation that lasts and one that silently reverts:
+    Cloud Run resolves `NAME:latest` when an instance starts, so without a new version the
+    next cold start reads whatever was current at deploy time.
+
+    Failure is reported loudly rather than skipped. A silent skip here reproduces the exact
+    trap that an empty PUBLIC_BASE_URL caused — a command that prints success while leaving
+    the deployment on a dead key.
+    """
+    gcloud = _gcloud()
+    if gcloud is None:
+        print(
+            "  WARNING: gcloud not found, so Secret Manager was NOT updated.\n"
+            "    Future Cloud Run instances will keep reading the OLD key after a cold start.\n"
+            "    Install the SDK, or pass --no-secret-manager if this machine is local-only."
+        )
+        return False
+
+    project = subprocess.run(  # noqa: S603 - resolved absolute path, no shell
+        [gcloud, "config", "get-value", "project"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+    if not project or project == "(unset)":
+        print(
+            "  WARNING: no gcloud project selected, so Secret Manager was NOT updated.\n"
+            "    Run: gcloud config set project YOUR_PROJECT"
+        )
+        return False
+
+    # The key goes in on stdin, never as an argv element: arguments are visible in the
+    # process table to any other user on the machine.
+    result = subprocess.run(  # noqa: S603
+        [gcloud, "secrets", "versions", "add", SECRET_NAME,
+         "--data-file=-", "--project", project, "--quiet"],
+        input=key.encode(),
+        capture_output=True,
+        check=False,
+    )  # fmt: skip
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", "replace").strip().splitlines()
+        detail = stderr[-1] if stderr else f"exit {result.returncode}"
+        if "NOT_FOUND" in detail:
+            print(
+                f"  WARNING: the secret {SECRET_NAME} does not exist yet in {project}.\n"
+                "    Create it once with: bash scripts/deploy_cloudrun.sh --secrets"
+            )
+        else:
+            print(f"  WARNING: Secret Manager was NOT updated: {detail}")
+        return False
+
+    print(f"  OK Secret Manager: new version of {SECRET_NAME} in {project}")
+    return True
+
+
 def push_remote(key: str, base_url: str, token: str, expires_at: datetime | None) -> bool:
     """Send the key to the deployed service. Returns True on success."""
     url = f"{base_url}/admin/llm-key"
@@ -192,6 +292,15 @@ def main() -> int:
         default=12.0,
         help="lifetime in hours, for the expiry warning (default: 12, the AWS maximum)",
     )
+    parser.add_argument(
+        "--no-secret-manager",
+        action="store_true",
+        help=(
+            "skip the Secret Manager version. This machine and the running instance are "
+            "still updated, but future Cloud Run instances keep the OLD key after a cold "
+            "start — only use it when you have no gcloud access."
+        ),
+    )
     parser.add_argument("--status", action="store_true", help="show what is loaded, then exit")
     args = parser.parse_args()
 
@@ -252,8 +361,19 @@ def main() -> int:
             print(f"remote ({base_url}):")
             ok_remote = push_remote(key, base_url, token, expires_at)
 
-    if ok_local and ok_remote:
-        where = "this machine" if args.local else "this machine and the deployed service"
+    # Secret Manager is what makes the rotation outlive the current instance. Skipped for
+    # --local, which by definition means "do not touch the deployment".
+    ok_secret = True
+    if not args.local and not args.no_secret_manager:
+        print("secret manager:")
+        ok_secret = push_secret_manager(key)
+
+    if ok_local and ok_remote and ok_secret:
+        where = (
+            "this machine"
+            if args.local
+            else "this machine, the running service, and future instances"
+        )
         print(f"\nDone - {where} updated.")
         print("Verify with: python scripts/set_bedrock_key.py --status")
         return 0

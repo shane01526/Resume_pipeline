@@ -83,12 +83,27 @@ CONCURRENCY="${CONCURRENCY:-4}"
 # the trigger to hold a connection open for the whole run, so a client timeout would abort a
 # render, and Slack's 3-second ack rule makes it impossible for the /resume command path.
 
-# BEDROCK_API_KEY is deliberately NOT in this list. It expires within 12 hours, so binding
-# it as a Secret Manager version would mean a new Cloud Run revision on every rotation.
-# It ships as a plain env var for the initial boot and is rotated in place afterwards via
-# `scripts/set_bedrock_key.py` → POST /admin/llm-key. ANTHROPIC_API_KEY stays here for the
-# LLM_PROVIDER=anthropic path, which uses a long-lived key.
-SECRETS=(ANTHROPIC_API_KEY NOTION_TOKEN SLACK_BOT_TOKEN SLACK_SIGNING_SECRET GITHUB_TOKEN APPROVAL_HMAC_SECRET TRIGGER_TOKEN)
+# BEDROCK_API_KEY belongs here, and used not to. The old reasoning was that a short-term key
+# expiring every 12 hours would need a new Cloud Run revision per rotation — which is wrong:
+# `--set-secrets NAME=NAME:latest` stores the *reference* "latest" in the revision, and Cloud
+# Run resolves it when an instance starts. Adding a secret version is enough.
+#
+# Measured rather than assumed. Added a new TRIGGER_TOKEN version, waited for scale-to-zero
+# without touching the service, then called a token-gated endpoint: revision
+# resume-pipeline-00019-5wb — unchanged throughout — served a fresh instance that accepted
+# the NEW value and rejected the old one. No redeploy involved.
+#
+# Two things were broken by keeping it a plain env var:
+#   * Rotation was not durable. `/admin/llm-key` updates the instance that receives the
+#     request; after scale-to-zero the next instance fell back to the value baked in at
+#     deploy time. A run failed with "Signature expired: 20260813T143251Z" hours after a
+#     successful rotation.
+#   * The key was readable in plaintext by anyone who could run
+#     `gcloud run services describe` — which is exactly what this SECRETS list exists to
+#     prevent for the other credentials.
+#
+# ANTHROPIC_API_KEY stays for the LLM_PROVIDER=anthropic path, which uses a long-lived key.
+SECRETS=(ANTHROPIC_API_KEY BEDROCK_API_KEY NOTION_TOKEN SLACK_BOT_TOKEN SLACK_SIGNING_SECRET GITHUB_TOKEN APPROVAL_HMAC_SECRET TRIGGER_TOKEN)
 
 # Read one value out of .env, in one place instead of five copies of the same pipeline.
 #
@@ -195,11 +210,6 @@ done
 # plain env var.
 slack_channel=$(env_value SLACK_DM_CHANNEL)
 
-# Seed key for the first boot. Rotations after this go through /admin/llm-key rather than a
-# redeploy — see scripts/set_bedrock_key.py.
-bedrock_key=$(env_value BEDROCK_API_KEY)
-[ -n "$bedrock_key" ] || bedrock_key=$(env_value AWS_BEARER_TOKEN_BEDROCK)
-
 env_vars=(
     "STORAGE_BACKEND=github"   # REQUIRED here: Cloud Run's disk is ephemeral
     "GITHUB_REPO=shane01526/Resume_pipeline"
@@ -212,11 +222,10 @@ env_vars=(
     "BEDROCK_KEY_FILE=/tmp/bedrock_key.json"
 )
 [ -n "$slack_channel" ] && env_vars+=("SLACK_DM_CHANNEL=${slack_channel}")
-if [ -n "$bedrock_key" ] && [ "${bedrock_key#bedrock-api-key-}" != "$bedrock_key" ]; then
-    env_vars+=("BEDROCK_API_KEY=${bedrock_key}")
-else
-    info "no BEDROCK_API_KEY in .env — set one after deploy with scripts/set_bedrock_key.py"
-fi
+
+# BEDROCK_API_KEY is NOT set here any more. It comes from Secret Manager via the SECRETS list
+# above, so a rotation is a new secret version rather than a new revision — and the key stops
+# being visible in `gcloud run services describe`.
 
 # `^@^` tells gcloud to split this dict on @ instead of a comma. Required, not tidiness:
 # RENDERERS=html,latex,docx contains commas, so the default comma delimiter parsed `latex`
