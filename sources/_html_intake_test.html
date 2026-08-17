@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pipeline Reliability Review — safe to delete</title>
+<style>
+  body { font-family: Arial, sans-serif; color: #222; }
+  .banner { background: #eee; padding: 12px; font-weight: bold; }
+</style>
+<script>
+  var analytics = { id: "abc123", track: function (e) { console.log("event", e); } };
+  function boot() { analytics.track("page_view"); document.title = "loaded"; }
+  window.onload = boot;
+</script>
+</head>
+<body onload="boot()">
+<nav class="banner">
+  <a href="/">Home</a>
+  <a href="/docs">Docs</a>
+  <a href="/about">About</a>
+</nav>
+
+<h1>Resume Pipeline &mdash; Reliability Review</h1>
+
+<p>Hardened an automated r&eacute;sum&eacute; pipeline on Google Cloud Run after nine
+consecutive production failures, each traced to a difference between the local and
+deployed environments.</p>
+
+<p>Moved run artifacts and page images into durable storage so the human review page
+survives instance recycling; previously every before/after image returned 404 once the
+rendering container was gone.</p>
+
+<p>Replaced a plain-text API key env var with Secret Manager bound at
+<code>:latest</code>, making key rotation outlive a cold start and removing the
+credential from <code>gcloud run services describe</code> output.</p>
+
+<h2>Verified outcomes</h2>
+<table>
+  <tr><th>Area</th><th>Before</th><th>After</th></tr>
+  <tr><td>Review page images</td><td>404 after recycle</td><td>Served from storage</td></tr>
+  <tr><td>Key rotation</td><td>Lost on cold start</td><td>Durable via Secret Manager</td></tr>
+  <tr><td>CI LaTeX compile</td><td>Never ran (5/5 failures)</td><td>Green</td></tr>
+</table>
+
+<ul>
+  <li>Diagnosed a Cloud Run CPU-throttling failure where background work stalled at 615s</li>
+  <li>Found an eventual-consistency bug in GitHub Contents API read-after-write</li>
+  <li>Added mutation-checked tests: each fix verified to fail when reverted</li>
+</ul>
+
+<p>Technologies: Python, FastAPI, Google Cloud Run, Secret Manager, Amazon Bedrock,
+Playwright, Tectonic, GitHub Actions.</p>
+
+<noscript>This page requires JavaScript to display analytics.</noscript>
+</body>
+</html>
