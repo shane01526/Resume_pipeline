@@ -245,3 +245,47 @@ def test_unknown_renderer_name_is_rejected() -> None:
     goes missing, and nothing is logged."""
     with pytest.raises(ValueError, match="unknown renderer"):
         _settings_with_renderers("html,latext")
+
+
+def test_deploy_script_disables_msys_path_conversion() -> None:
+    """Git Bash must not rewrite the container's POSIX paths into Windows ones.
+
+    Without this, `BEDROCK_KEY_FILE=/tmp/bedrock_key.json` reached Cloud Run as
+    `C:/Users/<you>/AppData/Local/Temp/bedrock_key.json`. Inside the Linux container that is
+    a *relative* path, so it resolved under /app — the repository — and llm_key.py's guard
+    correctly refused to write a credential there. POST /admin/llm-key answered 400 and
+    in-place rotation was dead, with nothing failing at deploy time to say so.
+    """
+    script = (REPO_ROOT / "scripts" / "deploy_cloudrun.sh").read_text(encoding="utf-8")
+
+    assert "MSYS_NO_PATHCONV=1" in script
+    assert 'MSYS2_ARG_CONV_EXCL="*"' in script
+
+
+def test_container_paths_in_the_deploy_script_are_posix() -> None:
+    """Every path handed to the container must be POSIX, whatever OS deploys it."""
+    import re
+
+    script = (REPO_ROOT / "scripts" / "deploy_cloudrun.sh").read_text(encoding="utf-8")
+    block = re.search(r"env_vars=\((.*?)\n\)", script, re.DOTALL)
+    assert block
+
+    for name, value in re.findall(r'"([A-Z_]+)=([^"]*)"', block.group(1)):
+        assert not re.match(r"^[A-Za-z]:[\/]", value), f"{name} carries a Windows path: {value}"
+        assert "\\" not in value, f"{name} carries a backslash: {value}"
+
+
+def test_key_cache_default_is_outside_the_repo() -> None:
+    """The guard that caught the bug above only works if the default is sane too.
+
+    state/ and output/ are committed to a public repo, so a credential cached there would be
+    published — hence the hard error rather than a warning.
+    """
+    from pipeline.llm_key import LLMKeyError, _validate_key_path
+
+    settings = Settings(_env_file=None)
+    resolved = _validate_key_path(settings.bedrock_key_file, settings)
+    assert resolved.is_absolute()
+
+    with pytest.raises(LLMKeyError, match="inside the repository"):
+        _validate_key_path(settings.repo_root / "state" / "key.json", settings)

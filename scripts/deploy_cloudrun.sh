@@ -12,6 +12,24 @@
 # Requirements: gcloud CLI, authenticated (`gcloud auth login`), with a project selected.
 set -euo pipefail
 
+# Git Bash rewrites POSIX-looking arguments into Windows paths before handing them to a
+# native .exe/.cmd. gcloud is native, so `BEDROCK_KEY_FILE=/tmp/bedrock_key.json` was
+# delivered to Cloud Run as
+#   BEDROCK_KEY_FILE=C:/Users/<you>/AppData/Local/Temp/bedrock_key.json
+# — a Windows path inside a Linux container. It resolved to /app/C:/Users/... , i.e. *inside
+# the repository*, so pipeline/llm_key.py's guard refused to write a credential there and
+# POST /admin/llm-key started answering 400. In-place key rotation was completely broken.
+#
+# It only appeared after BEDROCK_API_KEY stopped being passed here: with that long base64
+# value at the end of the joined string, MSYS's heuristic did not treat the argument as a
+# path list. Removing it changed the shape and the conversion kicked in — which is why this
+# has to be disabled explicitly rather than left to luck.
+#
+# Safe to set globally: every other path this script passes (`--source .`, `.env`,
+# `--data-file=-`) is relative or not a path at all.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
 SERVICE="${SERVICE:-resume-pipeline}"
 REGION="${REGION:-asia-east1}"          # Taipei — closest to you and to Notion's edge
 
