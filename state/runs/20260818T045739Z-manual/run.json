@@ -1,0 +1,17 @@
+{
+  "artifacts": [],
+  "commit_sha": null,
+  "counts": {
+    "added": 0,
+    "modified": 0,
+    "removed": 0
+  },
+  "created_at": "2026-08-18T04:57:39.033245Z",
+  "decided_by": null,
+  "error": null,
+  "id": "20260818T045739Z-manual",
+  "notion_run_page_id": null,
+  "status": "Building",
+  "trigger": "Manual",
+  "updated_at": "2026-08-18T04:57:39.033975Z"
+}
