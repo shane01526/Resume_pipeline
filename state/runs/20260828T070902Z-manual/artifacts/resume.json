@@ -1,0 +1,322 @@
+{
+  "education": [
+    {
+      "bullets": [
+        "Member of NTU Computational Linguistics Specialized Program",
+        "Member of NTU Chinese-English Translation Program",
+        "Relevant Coursework: NLP, Computational Linguistics, Phonology, Semantics"
+      ],
+      "confidence": "High",
+      "coursework": "NLP, Computational Linguistics, Phonology, Semantics",
+      "degree": "Bachelor of Arts",
+      "end": "2026-06-30",
+      "expected": false,
+      "field": "Foreign Languages and Literatures",
+      "highlight": false,
+      "institution": "National Taiwan University (NTU)",
+      "notion_page_id": "3b525b0d-3537-8103-9374-f259b9df04f8",
+      "priority": 90,
+      "programs": [
+        "NTU Computational Linguistics Specialized Program",
+        "NTU Chinese-English Translation Program"
+      ],
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": null
+    },
+    {
+      "bullets": [
+        "Relevant Coursework (expected): Phonology, Computational Linguistics"
+      ],
+      "confidence": "High",
+      "coursework": "Phonology, Computational Linguistics",
+      "degree": "Master of Arts",
+      "end": "2028-06-30",
+      "expected": true,
+      "field": "Linguistics",
+      "highlight": false,
+      "institution": "National Yang Ming Chiao Tung University (NYCU)",
+      "notion_page_id": "3b525b0d-3537-81e9-896b-ed7f19bb7487",
+      "priority": 100,
+      "programs": [],
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": null
+    }
+  ],
+  "experiences": [
+    {
+      "bullets": [
+        "Optimized AI News agent orchestration logic, data ETL, LINE integration and AWS deploy architecture.",
+        "Built a recording-ASR-based BRD auto-revising agent with human-in-the-loop audit.",
+        "Deployed a speech-driven form-filling service using streaming LLM on AWS for enterprise usage."
+      ],
+      "confidence": "High",
+      "end": null,
+      "highlight": true,
+      "location": "Taipei, Taiwan",
+      "notion_page_id": "3b525b0d-3537-8135-a2e4-da7824d25dd3",
+      "organization": "Cathay Financial Holdings — DDT AI",
+      "priority": 100,
+      "role": "ML/AI Engineer Intern",
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": "2026-02-01",
+      "tags": [
+        "LLM",
+        "AWS",
+        "LangGraph",
+        "ETL",
+        "Slack",
+        "LINE"
+      ],
+      "type": "Internship"
+    },
+    {
+      "bullets": [
+        "Designed perception experiment schema, prepared stimuli, and analyzed data for non-moraic schwa stress-bearing naturalness.",
+        "Surveyed artificial-learning-experiment related phonology papers and prepared experiment stimuli using Praat and PsychoPy."
+      ],
+      "confidence": "High",
+      "end": "2026-06-30",
+      "highlight": false,
+      "location": "Taipei, Taiwan",
+      "notion_page_id": "3b525b0d-3537-8136-9ea1-cf9573136374",
+      "organization": "National Taiwan University",
+      "priority": 90,
+      "role": "Research Assistant — Prof. Shu-hao Shih",
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": "2024-06-01",
+      "tags": [
+        "Phonology",
+        "NLP"
+      ],
+      "type": "RA"
+    },
+    {
+      "bullets": [
+        "Architected a LINE LIFF App career counseling chatbot with an n8n-based RPA workflow and managed user data with Supabase.",
+        "Supported Enterprise Cloud Platform education courses as technical support."
+      ],
+      "confidence": "High",
+      "end": "2025-08-31",
+      "highlight": false,
+      "location": "New Taipei City, Taiwan",
+      "notion_page_id": "3b525b0d-3537-8152-bd96-f1fe85f96b33",
+      "organization": "Taiwan AI Academy (AIA)",
+      "priority": 80,
+      "role": "AI Developer & Technical Support Summer Intern",
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": "2025-06-01",
+      "tags": [
+        "LINE",
+        "Frontend"
+      ],
+      "type": "Internship"
+    }
+  ],
+  "lang": "en",
+  "profile": {
+    "email": "applegirlmabel@gmail.com",
+    "github": null,
+    "linkedin": null,
+    "name": "WU, YU-HSUAN",
+    "phone": null,
+    "summary": null,
+    "website": null
+  },
+  "projects": [
+    {
+      "affiliation": "Cathay Financial Holdings — DDT AI",
+      "bullets": [
+        "Built an internal AI research report query assistant using a four-layer architecture (Interface / Application / Data / External Services).",
+        "Designed a three-scenario classification system (LLM intent detection + Python state machine) for intelligent routing across explicit, fuzzy, and out-of-scope queries.",
+        "Built a full ETL pipeline (Google Sheets → Bedrock Embedding → OpenSearch) with multi-dimensional filtering by topic, source, date, and subscription tier."
+      ],
+      "confidence": "High",
+      "context": "Cathay Financial Holdings, DDT AI",
+      "date": "2026-03-01",
+      "highlight": true,
+      "name": "AI News Agent — Three-Scenario Routing Chatbot",
+      "notion_page_id": "3ca25b0d-3537-8082-98ff-e6806b6003b1",
+      "priority": 90,
+      "repo_url": null,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "tags": [
+        "LLM",
+        "RAG",
+        "AWS",
+        "ETL",
+        "LINE"
+      ]
+    },
+    {
+      "affiliation": "Cathay Financial Holdings — DDT AI",
+      "bullets": [
+        "Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace)",
+        "BU Agent serves as the BU's single entry point (two modes) to draft v1.0 BRD, then hands off structured deliverables to the downstream BA Agent."
+      ],
+      "confidence": "Medium",
+      "context": "Cathay Financial Holdings, DDT AI",
+      "date": "2026-05-01",
+      "highlight": true,
+      "name": "BU Agent — Web-Based Two-Mode BRD Co-Drafting Assistant",
+      "notion_page_id": "3ca25b0d-3537-80d9-b52a-e72fd64ea83b",
+      "priority": 80,
+      "repo_url": null,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "tags": [
+        "LLM",
+        "LangGraph",
+        "Frontend"
+      ]
+    },
+    {
+      "affiliation": "Cathay Financial Holdings — DDT AI",
+      "bullets": [
+        "Built a Slack bot that converts mp4 oral work report into confirmable Notion pages and tasks, plus a daily automated standup summary",
+        "Re-architected a single-instance Next.js service into a cloud-native ECS Fargate deployment with DynamoDB, SQS and EventBridge to enable horizontal scaling and zero-data-loss rolling updates",
+        "Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on ops cost and private-subnet criteria"
+      ],
+      "confidence": "High",
+      "context": "Cathay Financial Holdings, DDT AI",
+      "date": null,
+      "highlight": true,
+      "name": "Voice-Notion — Cloud-First Standup Assistant",
+      "notion_page_id": "3ca25b0d-3537-80c2-bc8a-cd2d251b1406",
+      "priority": 100,
+      "repo_url": null,
+      "source": "deployment-architecture.html",
+      "tags": []
+    }
+  ],
+  "publications": [
+    {
+      "authors": null,
+      "bullets": [
+        "Developed and presented the \"Self-Discover-NLI\" prompt engineering framework, adapting the three-step Self-Discover pipeline (SELECT → ADAPT → APPLY) specifically for Natural Language Inference (NLI) tasks.",
+        "Conducted systematic experiments on the IMPPRES dataset (95 tasks per trigger type), evaluating GPT-4o's handling of clefts, conditionals, modals, and other linguistic triggers.",
+        "Achieved ~10% overall accuracy improvement; performed in-depth error analysis identifying systematic model weaknesses."
+      ],
+      "confidence": "High",
+      "date": null,
+      "highlight": false,
+      "notion_page_id": "3b525b0d-3537-81a2-bff7-fce57faffe06",
+      "priority": 95,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "title": "Examining LLM's Ability to Judge Presuppositions: A Comparative Study of Zero-Shot and Self-Discover-NLI Prompting",
+      "type": "Conference Paper",
+      "url": null,
+      "venue": "ROCLING 2025"
+    }
+  ],
+  "skills": [
+    {
+      "category": "Certificates",
+      "confidence": "High",
+      "detail": "Solutions Architect Associate",
+      "highlight": false,
+      "name": "AWS SAA",
+      "notion_page_id": "3ca25b0d-3537-80d2-966e-e0925964ffb7",
+      "priority": 0,
+      "source": null
+    },
+    {
+      "category": "Frameworks",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "LangChain",
+      "notion_page_id": "3ca25b0d-3537-801a-b493-c63b1d50f9c3",
+      "priority": 0,
+      "source": null
+    },
+    {
+      "category": "Tools",
+      "confidence": "Medium",
+      "detail": "node:20-slim image with ffmpeg, --no-cache builds",
+      "highlight": false,
+      "name": "Docker",
+      "notion_page_id": "3bf25b0d-3537-81f3-9ae3-cf269c2a27ab",
+      "priority": 0,
+      "source": "deployment-architecture.html"
+    },
+    {
+      "category": "Tools",
+      "confidence": "Medium",
+      "detail": "register-task-definition, create-service, update-service, logs tail",
+      "highlight": false,
+      "name": "AWS CLI",
+      "notion_page_id": "3bf25b0d-3537-81f3-9732-f89c4869cbf7",
+      "priority": 0,
+      "source": "deployment-architecture.html"
+    },
+    {
+      "category": "Certificates",
+      "confidence": "High",
+      "detail": "Listening and Reading 985, Speaking 180, Writing 170",
+      "highlight": false,
+      "name": "TOEIC",
+      "notion_page_id": "3b525b0d-3537-811b-b5d4-ceda43ab63ad",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Cloud & Infra",
+      "confidence": "High",
+      "detail": "Lambda, Bedrock, OpenSearch, DynamoDB, Amazon ECR, EventBridge, Amazon SQS",
+      "highlight": false,
+      "name": "AWS",
+      "notion_page_id": "3b525b0d-3537-8130-a8d6-e99fe1e61ace",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Frameworks",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "LangGraph",
+      "notion_page_id": "3b525b0d-3537-8130-af5e-f81c7dc836cd",
+      "priority": 100,
+      "source": "bu_agent_overview.md"
+    },
+    {
+      "category": "Languages",
+      "confidence": "High",
+      "detail": "Native",
+      "highlight": false,
+      "name": "Mandarin",
+      "notion_page_id": "3b525b0d-3537-8161-84c9-e54d8bbb38b4",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Languages",
+      "confidence": "High",
+      "detail": "Fluent",
+      "highlight": false,
+      "name": "English",
+      "notion_page_id": "3b525b0d-3537-816e-b731-d2060755d2a9",
+      "priority": 90,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Tools",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "Microsoft Office",
+      "notion_page_id": "3b525b0d-3537-8180-8e07-d766d62fdbdc",
+      "priority": 80,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Programming",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "Python",
+      "notion_page_id": "3b525b0d-3537-81cd-a843-cd788eabf8e2",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    }
+  ]
+}
