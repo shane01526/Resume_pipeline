@@ -1,0 +1,84 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [
+        "-Implemented asynchronous Lambda self-invocation to overcome LINE Webhook's 1-second timeout, supporting 5–15 second LLM inference + RAG retrieval pipelines."
+      ],
+      "fields": [
+        {
+          "after": "90",
+          "before": "100",
+          "field": "priority"
+        },
+        {
+          "after": "3 bullet(s)",
+          "before": "4 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "proj:ai-news-agent-three-scenario-routing-chatbot",
+      "kind": "modified",
+      "label": "AI News Agent — Three-Scenario Routing Chatbot",
+      "notion_page_id": "3ca25b0d-3537-8082-98ff-e6806b6003b1",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [
+        "-Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace); BU Agent serves as the BU's single entry point (two modes) to draft v1.0 BRD, then hands off structured deliverables to the downstream BA Agent.",
+        "-Explore mode: 5-stage question bank (diverge → converge → challenge) with a live 5-dimension rubric workspace; emits a dual handoff (JSON + 200–400-word paragraph) that auto-transitions to Consult, compressing ideation to 5–10 min.",
+        "-Consult mode: Step 1 auto-drafts the BRD outline from per-BU YAML templates and adding status tags for each sections; Step 2 interviews only “needs_round2” tag with live-preview inline edit, keeping BU interview time to 20–30 min.",
+        "+Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace)",
+        "+BU Agent serves as the BU's single entry point (two modes) to draft v1.0 BRD, then hands off structured deliverables to the downstream BA Agent."
+      ],
+      "fields": [
+        {
+          "after": "80",
+          "before": "90",
+          "field": "priority"
+        },
+        {
+          "after": "2 bullet(s)",
+          "before": "3 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "proj:bu-agent-web-based-two-mode-brd-co-drafting-assistant",
+      "kind": "modified",
+      "label": "BU Agent — Web-Based Two-Mode BRD Co-Drafting Assistant",
+      "notion_page_id": "3ca25b0d-3537-80d9-b52a-e72fd64ea83b",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [
+        "-Built a Slack bot that converts mp4 work oral report into confirmable Notion pages and tasks, plus a daily automated standup summary",
+        "+Built a Slack bot that converts mp4 oral work report into confirmable Notion pages and tasks, plus a daily automated standup summary",
+        "-Split webhook handling so web verified signatures, enqueued to SQS and returned 200 within 3s while worker handled 30–120s transcription and LLM work",
+        "-Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on persistent worker, cold start/ffmpeg, HA, ops cost and private-subnet criteria",
+        "+Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on ops cost and private-subnet criteria"
+      ],
+      "fields": [
+        {
+          "after": "100",
+          "before": "0",
+          "field": "priority"
+        },
+        {
+          "after": "3 bullet(s)",
+          "before": "4 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "proj:voice-notion-cloud-first-standup-assistant",
+      "kind": "modified",
+      "label": "Voice-Notion — Cloud-First Standup Assistant",
+      "notion_page_id": "3ca25b0d-3537-80c2-bc8a-cd2d251b1406",
+      "section": "projects"
+    }
+  ],
+  "counts": {
+    "added": 0,
+    "modified": 3,
+    "removed": 0
+  },
+  "is_first_run": false
+}
