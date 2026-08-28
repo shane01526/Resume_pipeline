@@ -7,7 +7,7 @@
     "artifacts/en/resume.docx",
     "artifacts/zh/resume.docx"
   ],
-  "commit_sha": null,
+  "commit_sha": "934a4e9ba68a633d355fa0921738f8c5e4332a33",
   "counts": {
     "added": 0,
     "modified": 6,
@@ -20,5 +20,5 @@
   "notion_run_page_id": null,
   "status": "Approved",
   "trigger": "Manual",
-  "updated_at": "2026-08-28T08:27:16.452362Z"
+  "updated_at": "2026-08-28T08:27:32.102907Z"
 }
