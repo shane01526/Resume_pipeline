@@ -71,27 +71,6 @@
     },
     {
       "bullets": [
-        "Designed perception experiment schema, prepared stimuli, and analyzed data for non-moraic schwa stress-bearing naturalness.",
-        "Surveyed artificial-learning-experiment related phonology papers and prepared experiment stimuli using Praat and PsychoPy."
-      ],
-      "confidence": "High",
-      "end": "2026-06-30",
-      "highlight": false,
-      "location": "Taipei, Taiwan",
-      "notion_page_id": "3b525b0d-3537-8136-9ea1-cf9573136374",
-      "organization": "National Taiwan University",
-      "priority": 90,
-      "role": "Research Assistant — Prof. Shu-hao Shih",
-      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
-      "start": "2024-06-01",
-      "tags": [
-        "Phonology",
-        "NLP"
-      ],
-      "type": "RA"
-    },
-    {
-      "bullets": [
         "Architected a LINE LIFF App career counseling chatbot with an n8n-based RPA workflow and managed user data with Supabase.",
         "Supported Enterprise Cloud Platform education courses as technical support."
       ],
@@ -101,7 +80,7 @@
       "location": "New Taipei City, Taiwan",
       "notion_page_id": "3b525b0d-3537-8152-bd96-f1fe85f96b33",
       "organization": "Taiwan AI Academy (AIA)",
-      "priority": 80,
+      "priority": 90,
       "role": "AI Developer & Technical Support Summer Intern",
       "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
       "start": "2025-06-01",
