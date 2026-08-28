@@ -611,3 +611,101 @@ async def test_publish_notification_omits_formats_that_were_not_rendered(
     assert "/resume/en.latex.pdf" not in posted[0]
     assert "/resume/zh.latex.pdf" in posted[0]
     assert "/resume/en.tex" in posted[0]
+
+
+# --- downloads survive an instance that never published ----------------------
+#
+# The Dockerfile creates output/en and output/zh empty and never copies published files
+# into the image, so on Cloud Run only the instance that ran the publish has them. These
+# use a storage backend whose contents are NOT on the local disk, which is the whole
+# point: with the real LocalStorage the durable copy is the same file, so a test would
+# "find" what a fresh container cannot.
+
+
+class _RepoStorage:
+    """Durable storage holding published files that never touched this container's disk."""
+
+    def __init__(self, files: dict[str, bytes]) -> None:
+        self.files = files
+        self.reads: list[str] = []
+
+    def read(self, path: str) -> bytes | None:
+        self.reads.append(path)
+        return self.files.get(path)
+
+    def list_prefix(self, prefix: str) -> list[str]:
+        return [key for key in self.files if key.startswith(f"{prefix}/")]
+
+
+@pytest.fixture
+def repo_storage(monkeypatch: pytest.MonkeyPatch) -> _RepoStorage:
+    storage = _RepoStorage(
+        {
+            "output/resume.json": json.dumps({"profile": {"name": "WU, YU-HSUAN"}}).encode(),
+            "output/en/resume.tex": b"% !TEX program = xelatex\n",
+            "output/en/resume.pdf": b"%PDF-1.4 from the repo",
+        }
+    )
+    for module in ("web.routes_resume", "web.slack"):
+        monkeypatch.setattr(f"{module}.build_storage", lambda _s: storage)
+    return storage
+
+
+def test_download_falls_back_to_storage(
+    client: TestClient, settings: Settings, repo_storage: _RepoStorage
+) -> None:
+    """A redeploy turned four working links into 404s; the repo is the durable copy."""
+    assert not (settings.output_dir / "en" / "resume.tex").exists()
+
+    response = client.get("/resume/en.tex")
+
+    assert response.status_code == 200
+    assert response.content == b"% !TEX program = xelatex\n"
+    # The recruiter-facing filename needs resume.json, which is equally absent locally.
+    assert "WU_YU-HSUAN_Resume_EN.tex" in response.headers["content-disposition"]
+
+
+def test_restored_download_is_cached_on_disk(
+    client: TestClient, settings: Settings, repo_storage: _RepoStorage
+) -> None:
+    """Otherwise every download costs a GitHub API round trip."""
+    client.get("/resume/en.tex")
+    assert (settings.output_dir / "en" / "resume.tex").is_file()
+
+    repo_storage.reads.clear()
+    assert client.get("/resume/en.tex").status_code == 200
+    assert repo_storage.reads == [], "the second request went back to storage"
+
+
+def test_download_still_404s_when_nothing_was_published(
+    client: TestClient, repo_storage: _RepoStorage
+) -> None:
+    """Absent from disk *and* from the repo is the real "not published yet"."""
+    response = client.get("/resume/zh.docx")
+    assert response.status_code == 404
+    assert "Approve a run first" in response.json()["detail"]
+
+
+def test_latest_links_read_storage_on_a_fresh_instance(
+    settings: Settings, repo_storage: _RepoStorage
+) -> None:
+    """`/resume latest` reported "還沒有已發布的履歷" on any instance that had not published."""
+    from web.slack import _latest_links
+
+    reply = _latest_links(settings)
+
+    assert "/resume/en.tex" in reply
+    assert "/resume/en.pdf" in reply
+    # Not published at all, so it must not be offered.
+    assert "/resume/zh.pdf" not in reply
+
+
+def test_latest_links_prefer_the_local_disk(settings: Settings, repo_storage: _RepoStorage) -> None:
+    """The publishing instance has the files, so the common case costs no API call."""
+    from web.slack import _available_artifacts
+
+    target = settings.output_dir / "en" / "resume.docx"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"x")
+
+    assert _available_artifacts(settings, "en") == {"resume.docx"}

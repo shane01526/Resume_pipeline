@@ -3,10 +3,16 @@
 These always point at the latest approved artifact, so the URL can go in an email
 signature or a GitHub profile and never needs updating.
 
-Files are served from the container's `output/` directory — the same working copy the
-publish stage commits to. Serving from disk rather than proxying GitHub keeps the path
-short and avoids depending on raw.githubusercontent's cache behaviour; if the container
-is fresh and `output/` is empty, the endpoint says so rather than 404ing blankly.
+Files are served from the container's `output/` directory, falling back to durable
+storage when it is not there. The fallback is not belt-and-braces: on Cloud Run the
+Dockerfile creates `output/en` and `output/zh` *empty* and never copies published files
+into the image, so only the instance that happened to run the publish has them. Every
+link 404s after that instance recycles — or after any redeploy — until the next publish.
+Measured, not theoretical: a redeploy turned four working links into 404s.
+
+The repo is the durable copy (see `pipeline/state.py` on git-as-database), so a miss is
+resolved by reading `output/...` through the storage backend and caching it on disk for
+subsequent requests. Which is also why the `.tex` published by hand works immediately.
 """
 
 from __future__ import annotations
@@ -17,7 +23,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
-from pipeline.config import get_settings
+from pipeline.config import Settings, get_settings
+from pipeline.storage import StorageError, build_storage
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +64,7 @@ async def download(filename: str) -> FileResponse:
     filename, media_type = FORMATS[fmt]
     path = settings.output_dir / lang / filename
 
-    if not path.is_file():
+    if not path.is_file() and not _restore(settings, f"output/{lang}/{filename}", path):
         raise HTTPException(
             404,
             f"no published {lang}.{fmt} yet. Approve a run first — "
@@ -76,6 +83,32 @@ async def download(filename: str) -> FileResponse:
     )
 
 
+def _restore(settings: Settings, key: str, path: Path) -> bool:
+    """Fetch one published file from durable storage onto disk. Returns whether it is there.
+
+    Best-effort by design: a storage failure should read as "not published yet" — the
+    message the caller already produces — rather than a 500 on a link that may be sitting
+    in someone's email signature. With the local backend this is a no-op in effect, since
+    the durable copy *is* the file just checked.
+    """
+    storage = None
+    try:
+        storage = build_storage(settings)
+        data = storage.read(key)
+        if data is None:
+            return False
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        log.info("restored %s from storage (%.1f KB)", key, len(data) / 1024)
+        return True
+    except (StorageError, OSError) as exc:
+        log.warning("could not restore %s from storage: %s", key, exc)
+        return False
+    finally:
+        if close := getattr(storage, "close", None):
+            close()
+
+
 def _download_name(output_dir: Path, lang: str, fmt: str) -> str:
     """Build a filename from the published resume's own name field.
 
@@ -84,6 +117,9 @@ def _download_name(output_dir: Path, lang: str, fmt: str) -> str:
     """
     stem = "Resume"
     source = output_dir / ("resume.zh.json" if lang == "zh" else "resume.json")
+    if not source.is_file():
+        # Same reason as the artifact itself: a fresh container has no output/ contents.
+        _restore(get_settings(), f"output/{source.name}", source)
     if source.is_file():
         try:
             import json

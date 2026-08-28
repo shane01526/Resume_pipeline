@@ -26,6 +26,7 @@ from fastapi.responses import JSONResponse
 
 from pipeline.config import Settings, get_settings
 from pipeline.state import RunStatus, RunStore, Trigger
+from pipeline.storage import StorageError, build_storage
 
 log = logging.getLogger(__name__)
 
@@ -164,17 +165,43 @@ DOWNLOAD_FORMATS = (
 LANG_LABELS = (("en", "英文"), ("zh", "中文"))
 
 
+def _available_artifacts(settings: Settings, lang: str) -> set[str]:
+    """Filenames published for `lang`, from disk if it has any, otherwise from storage.
+
+    A fresh Cloud Run container has `output/{lang}/` created empty by the Dockerfile and no
+    published file in it, so trusting the filesystem alone made `/resume latest` answer
+    "還沒有已發布的履歷" on any instance that had not itself done the publishing. The repo
+    is the durable copy, so a bare directory falls back to a listing — one API call, and
+    only when there is nothing local to report.
+    """
+    local = {path.name for path in (settings.output_dir / lang).glob("*") if path.is_file()}
+    if local:
+        return local
+
+    storage = None
+    try:
+        storage = build_storage(settings)
+        return {key.rsplit("/", 1)[-1] for key in storage.list_prefix(f"output/{lang}")}
+    except StorageError as exc:
+        log.warning("could not list published artifacts for %s: %s", lang, exc)
+        return set()
+    finally:
+        if close := getattr(storage, "close", None):
+            close()
+
+
 def published_links(settings: Settings, lang: str) -> list[tuple[str, str]]:
-    """(label, url) for each format actually on disk for `lang`.
+    """(label, url) for each format actually published for `lang`.
 
     Existence-checked rather than assumed: an environment without Tectonic publishes no
     `.latex.pdf`, and a link to a file that was never rendered 404s.
     """
     base = settings.public_base_url
+    available = _available_artifacts(settings, lang)
     return [
         (label, f"{base}/resume/{lang}.{fmt}")
         for fmt, label in DOWNLOAD_FORMATS
-        if (settings.output_dir / lang / _artifact_name(fmt)).is_file()
+        if _artifact_name(fmt) in available
     ]
 
 
