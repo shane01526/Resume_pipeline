@@ -125,7 +125,7 @@
     {
       "affiliation": "Cathay Financial Holdings — DDT AI",
       "bullets": [
-        "Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace)",
+        "Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace).",
         "BU Agent serves as the BU's single entry point (two modes) to draft v1.0 BRD, then hands off structured deliverables to the downstream BA Agent."
       ],
       "confidence": "Medium",
@@ -146,9 +146,9 @@
     {
       "affiliation": "Cathay Financial Holdings — DDT AI",
       "bullets": [
-        "Built a Slack bot that converts mp4 oral work report into confirmable Notion pages and tasks, plus a daily automated standup summary",
-        "Re-architected a single-instance Next.js service into a cloud-native ECS Fargate deployment with DynamoDB, SQS and EventBridge to enable horizontal scaling and zero-data-loss rolling updates",
-        "Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on ops cost and private-subnet criteria"
+        "Built a Slack bot that converts mp4 oral work report into confirmable Notion pages and tasks, plus a daily automated standup summary.",
+        "Re-architected a single-instance Next.js service into a cloud-native ECS Fargate deployment with DynamoDB, SQS and EventBridge to enable horizontal scaling and zero-data-loss rolling updates.",
+        "Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on ops cost and private-subnet criteria."
       ],
       "confidence": "High",
       "context": "Cathay Financial Holdings, DDT AI",
