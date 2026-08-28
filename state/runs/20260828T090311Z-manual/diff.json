@@ -1,0 +1,50 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [
+        "-Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace)",
+        "+Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace)."
+      ],
+      "fields": [
+        {
+          "after": "2 bullet(s)",
+          "before": "2 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "proj:bu-agent-web-based-two-mode-brd-co-drafting-assistant",
+      "kind": "modified",
+      "label": "BU Agent — Web-Based Two-Mode BRD Co-Drafting Assistant",
+      "notion_page_id": "3ca25b0d-3537-80d9-b52a-e72fd64ea83b",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [
+        "-Built a Slack bot that converts mp4 oral work report into confirmable Notion pages and tasks, plus a daily automated standup summary",
+        "-Re-architected a single-instance Next.js service into a cloud-native ECS Fargate deployment with DynamoDB, SQS and EventBridge to enable horizontal scaling and zero-data-loss rolling updates",
+        "-Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on ops cost and private-subnet criteria",
+        "+Built a Slack bot that converts mp4 oral work report into confirmable Notion pages and tasks, plus a daily automated standup summary.",
+        "+Re-architected a single-instance Next.js service into a cloud-native ECS Fargate deployment with DynamoDB, SQS and EventBridge to enable horizontal scaling and zero-data-loss rolling updates.",
+        "+Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on ops cost and private-subnet criteria."
+      ],
+      "fields": [
+        {
+          "after": "3 bullet(s)",
+          "before": "3 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "proj:voice-notion-cloud-first-standup-assistant",
+      "kind": "modified",
+      "label": "Voice-Notion — Cloud-First Standup Assistant",
+      "notion_page_id": "3ca25b0d-3537-80c2-bc8a-cd2d251b1406",
+      "section": "projects"
+    }
+  ],
+  "counts": {
+    "added": 0,
+    "modified": 2,
+    "removed": 0
+  },
+  "is_first_run": false
+}
