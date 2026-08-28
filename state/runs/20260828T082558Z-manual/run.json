@@ -14,11 +14,11 @@
     "removed": 2
   },
   "created_at": "2026-08-28T08:25:58.441756Z",
-  "decided_by": null,
+  "decided_by": "slack",
   "error": null,
   "id": "20260828T082558Z-manual",
   "notion_run_page_id": null,
-  "status": "Pending Approval",
+  "status": "Approved",
   "trigger": "Manual",
-  "updated_at": "2026-08-28T08:26:54.775719Z"
+  "updated_at": "2026-08-28T08:27:16.452362Z"
 }
