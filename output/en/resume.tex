@@ -1,0 +1,175 @@
+% !TEX program = xelatex
+% ---------------------------------------------------------------------------
+% 這份 .tex 是 resume pipeline 從 Notion 自動產生的，可以直接在 Overleaf 改。
+%
+% 1. 編譯器要用 XeLaTeX（不是 pdfLaTeX）—— 第一行的 magic comment 通常會自動選好；
+%    沒有的話到 Menu → Compiler 改。xeCJK 與 fontspec 都需要它。
+% 2. 字型是編譯時才決定的：找不到 Noto 就會自動退到 TeX Live 內建字型。
+%    若仍因缺字型編不過，只要改下面那幾行 fallback 的字型名字就行。
+% 3. 在這裡的手改只存在於 Overleaf。下一次 pipeline 產出會覆蓋這個檔案 ——
+%    要永久生效請改 repo 裡的 templates/resume.tex.j2。
+% ---------------------------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage{xeCJK}
+
+\IfFontExistsTF{Noto Serif}
+  {\setmainfont{Noto Serif}}
+  {\setmainfont{TeX Gyre Termes}}
+\IfFontExistsTF{Noto Sans}
+  {\setsansfont{Noto Sans}}
+  {\setsansfont{TeX Gyre Heros}}
+\IfFontExistsTF{Noto Serif CJK TC}
+  {\setCJKmainfont{Noto Serif CJK TC}}
+  {\IfFontExistsTF{uming.ttc}
+    {\setCJKmainfont{uming.ttc}}
+    {\setCJKmainfont{FandolSong-Regular.otf}}}
+\IfFontExistsTF{Noto Sans CJK TC}
+  {\setCJKsansfont{Noto Sans CJK TC}}
+  {\IfFontExistsTF{ukai.ttc}
+    {\setCJKsansfont{ukai.ttc}}
+    {\setCJKsansfont{FandolHei-Regular.otf}}}
+
+\IfFontExistsTF{Noto Sans CJK TC}
+  {%
+    \newfontfamily\symbolfont{Noto Sans CJK TC}
+    \newcommand{\bulletmark}{{\symbolfont ▪}}
+    \newcommand{\arrowright}{{\symbolfont →}}
+    \newcommand{\arrowboth}{{\symbolfont ↔}}
+  }
+  {%
+    \newcommand{\bulletmark}{\rule[0.05ex]{0.32em}{0.32em}}
+    \newcommand{\arrowright}{\ensuremath{\rightarrow}}
+    \newcommand{\arrowboth}{\ensuremath{\leftrightarrow}}
+  }
+
+\xeCJKDeclareCharClass{HalfLeft}{`—,`–}
+
+\XeTeXlinebreaklocale "zh"
+\XeTeXlinebreakskip = 0pt plus 1pt minus 0.1pt
+
+\usepackage[
+  a4paper,
+  top=12mm,
+  bottom=12mm,
+  left=14mm,
+  right=14mm
+]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+
+\definecolor{ink}{HTML}{111111}
+\definecolor{inkmuted}{HTML}{444444}
+\color{ink}
+
+\RaggedRight
+\setlength{\parindent}{0pt}
+\pagestyle{empty}
+
+\titleformat{\section}
+  {\normalfont\sffamily\bfseries\fontsize{10.5pt}{13pt}\selectfont\MakeUppercase}
+  {}{0em}{}[{\vspace{-1.1mm}\rule{\linewidth}{0.5pt}}]
+\titlespacing*{\section}{0pt}{4.2mm}{1.1mm}
+
+\setlist[itemize]{
+  leftmargin=3.4mm,
+  itemsep=0.7mm,
+  parsep=0pt,
+  topsep=1mm,
+  partopsep=0pt,
+  label={\footnotesize\raisebox{0.15ex}{\bulletmark}}
+}
+
+\newcommand{\entryhead}[2]{%
+  \begin{tabularx}{\linewidth}{@{}Xr@{}}
+    \textbf{\fontsize{10.5pt}{13pt}\selectfont #1} &
+    {\color{inkmuted}\fontsize{9.5pt}{12pt}\selectfont #2}
+  \end{tabularx}%
+}
+
+\newcommand{\entrysub}[2]{%
+  \begin{tabularx}{\linewidth}{@{}Xr@{}}
+    {\color{inkmuted}\itshape \fontsize{9.5pt}{12pt}\selectfont #1} &
+    {\color{inkmuted}\fontsize{9.5pt}{12pt}\selectfont #2}
+  \end{tabularx}%
+}
+
+\fontsize{9.5pt}{13pt}\selectfont
+
+\begin{document}
+
+\begin{center}
+  {\sffamily\bfseries\fontsize{17pt}{20pt}\selectfont
+   WU, YU-HSUAN}\\[1.2mm]
+  {\color{inkmuted}\fontsize{9pt}{11pt}\selectfont
+   applegirlmabel@gmail.com}
+\end{center}
+
+\section{Education}
+\entryhead{National Yang Ming Chiao Tung University (NYCU)}{2028 (expected)}
+\entrysub{Master of Arts in Linguistics}{}
+\begin{itemize}
+  \item Relevant Coursework (expected): Computational Linguistics
+\end{itemize}
+\vspace{2.6mm}\entryhead{National Taiwan University (NTU)}{2026}
+\entrysub{Bachelor of Arts in Foreign Languages and Literatures}{}
+\begin{itemize}
+  \item Member of NTU Computational Linguistics Specialized Program
+  \item Relevant Coursework: NLP, Computational Linguistics, Phonology, Semantics
+\end{itemize}
+
+\section{Experience}
+\entryhead{Cathay Financial Holdings — DDT AI}{Taipei, Taiwan}
+\entrysub{AI Engineer \& System Design Intern}{Feb 2026 – Present}
+\begin{itemize}
+  \item Developed LLM agents for optimizing internal business use .Owning both the AI
+application layer and the cloud-oriented deployment infrastructure.
+\end{itemize}
+\vspace{2.6mm}\entryhead{Taiwan AI Academy (AIA)}{New Taipei City, Taiwan}
+\entrysub{AI Developer \& Technical Support Summer Intern}{Jun 2025 – Aug 2025}
+\begin{itemize}
+  \item A dual delivery-and-support role: built an internal-facing application while serving as front-line technical support for enterprise course participants.
+\end{itemize}
+
+\section{Projects}
+\entryhead{Voice-Notion — Cloud-First Standup Assistant}{Cathay Financial Holdings, DDT AI}
+\begin{itemize}
+  \item Built a Slack bot that converts mp4 oral work report into confirmable Notion pages and tasks, plus a daily automated standup summary.
+  \item Re-architected a single-instance Next.js service into a cloud-native ECS Fargate deployment with DynamoDB, SQS and EventBridge to enable horizontal scaling and zero-data-loss rolling updates.
+  \item Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on ops cost and private-subnet criteria.
+\end{itemize}
+\vspace{2.6mm}\entryhead{AI News Agent — Three-Scenario Routing Chatbot}{Cathay Financial Holdings, DDT AI}
+\begin{itemize}
+  \item Built an internal AI research report query assistant using a four-layer architecture (Interface / Application / Data / External Services).
+  \item Designed a three-scenario classification system (LLM intent detection + Python state machine) for intelligent routing across explicit, fuzzy, and out-of-scope queries.
+  \item Built a full ETL pipeline (Google Sheets \arrowright{} Bedrock Embedding \arrowright{} OpenSearch) with multi-dimensional filtering by topic, source, date, and subscription tier.
+\end{itemize}
+\vspace{2.6mm}\entryhead{BU Agent — Web-Based Two-Mode BRD Co-Drafting Assistant}{Cathay Financial Holdings, DDT AI}
+\begin{itemize}
+  \item Built an internal web app using LangGraph + PostgresSaver with a split layout (chat \arrowboth{} mode-aware workspace).
+  \item BU Agent serves as the BU's single entry point (two modes) to draft v1.0 BRD, then hands off structured deliverables to the downstream BA Agent.
+\end{itemize}
+
+\section{Publications \& Talks}
+\entryhead{Examining LLM's Ability to Judge Presuppositions: A Comparative Study of Zero-Shot and Self-Discover-NLI Prompting}{ROCLING 2025}
+\begin{itemize}
+  \item Developed and presented the \textquotedbl{}Self-Discover-NLI\textquotedbl{} prompt engineering framework, adapting the three-step Self-Discover pipeline (SELECT \arrowright{} ADAPT \arrowright{} APPLY) specifically for Natural Language Inference (NLI) tasks.
+  \item Conducted systematic experiments on the IMPPRES dataset (95 tasks per trigger type), evaluating GPT-4o's handling of clefts, conditionals, modals, and other linguistic triggers.
+  \item Achieved \textasciitilde{}10\% overall accuracy improvement; performed in-depth error analysis identifying systematic model weaknesses.
+\end{itemize}
+
+\section{Skills}
+\begin{itemize}[label={},leftmargin=0pt,itemsep=0.7mm]
+  \item \textbf{Languages:}\ Mandarin (Native), English (Fluent)
+  \item \textbf{Programming:}\ Python
+  \item \textbf{Frameworks:}\ LangGraph, LangChain
+  \item \textbf{Tools:}\ AWS CLI, Docker
+  \item \textbf{Certificates:}\ TOEIC (Listening and Reading 985, Speaking 180, Writing 170), AWS SAA (Solutions Architect Associate)
+\end{itemize}
+
+\end{document}

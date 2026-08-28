@@ -1,0 +1,174 @@
+% !TEX program = xelatex
+% ---------------------------------------------------------------------------
+% 這份 .tex 是 resume pipeline 從 Notion 自動產生的，可以直接在 Overleaf 改。
+%
+% 1. 編譯器要用 XeLaTeX（不是 pdfLaTeX）—— 第一行的 magic comment 通常會自動選好；
+%    沒有的話到 Menu → Compiler 改。xeCJK 與 fontspec 都需要它。
+% 2. 字型是編譯時才決定的：找不到 Noto 就會自動退到 TeX Live 內建字型。
+%    若仍因缺字型編不過，只要改下面那幾行 fallback 的字型名字就行。
+% 3. 在這裡的手改只存在於 Overleaf。下一次 pipeline 產出會覆蓋這個檔案 ——
+%    要永久生效請改 repo 裡的 templates/resume.tex.j2。
+% ---------------------------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage{xeCJK}
+
+\IfFontExistsTF{Noto Serif}
+  {\setmainfont{Noto Serif}}
+  {\setmainfont{TeX Gyre Termes}}
+\IfFontExistsTF{Noto Sans}
+  {\setsansfont{Noto Sans}}
+  {\setsansfont{TeX Gyre Heros}}
+\IfFontExistsTF{Noto Serif CJK TC}
+  {\setCJKmainfont{Noto Serif CJK TC}}
+  {\IfFontExistsTF{uming.ttc}
+    {\setCJKmainfont{uming.ttc}}
+    {\setCJKmainfont{FandolSong-Regular.otf}}}
+\IfFontExistsTF{Noto Sans CJK TC}
+  {\setCJKsansfont{Noto Sans CJK TC}}
+  {\IfFontExistsTF{ukai.ttc}
+    {\setCJKsansfont{ukai.ttc}}
+    {\setCJKsansfont{FandolHei-Regular.otf}}}
+
+\IfFontExistsTF{Noto Sans CJK TC}
+  {%
+    \newfontfamily\symbolfont{Noto Sans CJK TC}
+    \newcommand{\bulletmark}{{\symbolfont ▪}}
+    \newcommand{\arrowright}{{\symbolfont →}}
+    \newcommand{\arrowboth}{{\symbolfont ↔}}
+  }
+  {%
+    \newcommand{\bulletmark}{\rule[0.05ex]{0.32em}{0.32em}}
+    \newcommand{\arrowright}{\ensuremath{\rightarrow}}
+    \newcommand{\arrowboth}{\ensuremath{\leftrightarrow}}
+  }
+
+\xeCJKDeclareCharClass{HalfLeft}{`—,`–}
+
+\XeTeXlinebreaklocale "zh"
+\XeTeXlinebreakskip = 0pt plus 1pt minus 0.1pt
+
+\usepackage[
+  a4paper,
+  top=12mm,
+  bottom=12mm,
+  left=14mm,
+  right=14mm
+]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+
+\definecolor{ink}{HTML}{111111}
+\definecolor{inkmuted}{HTML}{444444}
+\color{ink}
+
+\RaggedRight
+\setlength{\parindent}{0pt}
+\pagestyle{empty}
+
+\titleformat{\section}
+  {\normalfont\sffamily\bfseries\fontsize{10.5pt}{13pt}\selectfont}
+  {}{0em}{}[{\vspace{-1.1mm}\rule{\linewidth}{0.5pt}}]
+\titlespacing*{\section}{0pt}{4.2mm}{1.1mm}
+
+\setlist[itemize]{
+  leftmargin=3.4mm,
+  itemsep=0.7mm,
+  parsep=0pt,
+  topsep=1mm,
+  partopsep=0pt,
+  label={\footnotesize\raisebox{0.15ex}{\bulletmark}}
+}
+
+\newcommand{\entryhead}[2]{%
+  \begin{tabularx}{\linewidth}{@{}Xr@{}}
+    \textbf{\fontsize{10.5pt}{13pt}\selectfont #1} &
+    {\color{inkmuted}\fontsize{9.5pt}{12pt}\selectfont #2}
+  \end{tabularx}%
+}
+
+\newcommand{\entrysub}[2]{%
+  \begin{tabularx}{\linewidth}{@{}Xr@{}}
+    {\color{inkmuted}\fontsize{9.5pt}{12pt}\selectfont #1} &
+    {\color{inkmuted}\fontsize{9.5pt}{12pt}\selectfont #2}
+  \end{tabularx}%
+}
+
+\fontsize{9.5pt}{14.3pt}\selectfont
+
+\begin{document}
+
+\begin{center}
+  {\sffamily\bfseries\fontsize{17pt}{20pt}\selectfont
+   吳雨諠}\\[1.2mm]
+  {\color{inkmuted}\fontsize{9pt}{11pt}\selectfont
+   applegirlmabel@gmail.com}
+\end{center}
+
+\section{學歷}
+\entryhead{國立陽明交通大學}{2028（預計）}
+\entrysub{語言學碩士}{}
+\begin{itemize}
+  \item 預計修習課程：音韻學、計算語言學
+\end{itemize}
+\vspace{2.6mm}\entryhead{國立臺灣大學}{2026}
+\entrysub{外國語文學系學士}{}
+\begin{itemize}
+  \item 參與臺大計算語言學學程
+  \item 修習課程：自然語言處理、計算語言學、音韻學、語意學
+\end{itemize}
+
+\section{工作經歷}
+\entryhead{國泰金控 DDT AI}{台灣台北}
+\entrysub{ML/AI 工程師實習生}{2026 年 2 月 ～ 至今}
+\begin{itemize}
+  \item 開發針對內部業務流程優化的 LLM agent，並設計與部署其背後的雲端架構 。負責 AI 應用層與其運行的生產環境基礎架構。
+\end{itemize}
+\vspace{2.6mm}\entryhead{台灣人工智慧學校（AIA）}{台灣新北市}
+\entrysub{AI 開發與技術支援暑期實習生}{2025 年 6 月 ～ 2025 年 8 月}
+\begin{itemize}
+  \item 開發與支援並行的角色：開發AI 原生應用，同時擔任企業課程現場的第一線技術支援。
+\end{itemize}
+
+\section{專案成果}
+\entryhead{Voice-Notion — Slack 語音轉 Notion 機器人雲原生架構}{國泰金控 DDT AI}
+\begin{itemize}
+  \item 開發 Slack bot，將 mp4 口頭工作報告轉換為可確認的 Notion 頁面與任務，並自動產出每日 standup 摘要。
+  \item 將單一實例的 Next.js 服務重新架構為雲原生 ECS Fargate 部署，搭配 DynamoDB、SQS 與 EventBridge，實現水平擴展與零資料遺失的滾動更新。
+  \item 以維運成本與 private subnet 條件為評估標準，比較 Lambda + API Gateway、自管 EC2、App Runner 與 ECS Fargate。
+\end{itemize}
+\vspace{2.6mm}\entryhead{AI News Agent — 三情境路由聊天機器人}{國泰金控 DDT AI}
+\begin{itemize}
+  \item 以四層架構（介面 / 應用 / 資料 / 外部服務）打造內部 AI 研究報告查詢助理。
+  \item 設計三情境分類系統（LLM 意圖偵測 + Python 狀態機），對明確、模糊與超出範圍的提問進行智慧路由。
+  \item 建置完整 ETL 流程（Google Sheets \arrowright{} Bedrock Embedding \arrowright{} OpenSearch），並依主題、來源、日期與訂閱層級做多維度篩選。
+\end{itemize}
+\vspace{2.6mm}\entryhead{BU Agent — 雙模式 BRD 協作草擬助理（網頁版）}{國泰金控 DDT AI}
+\begin{itemize}
+  \item 以 LangGraph + PostgresSaver 打造內部網頁應用，採分屏佈局（對話 \arrowboth{} 模式感知工作區）
+  \item BU Agent 作為業務單位的單一入口（兩種模式）草擬 v1.0 BRD，再將結構化交付物交棒給下游 BA Agent。
+\end{itemize}
+
+\section{論文與演講}
+\entryhead{Examining LLM's Ability to Judge Presuppositions: A Comparative Study of Zero-Shot and Self-Discover-NLI Prompting}{ROCLING 2025}
+\begin{itemize}
+  \item 開發並發表「Self-Discover-NLI」prompt engineering 框架，將 Self-Discover 三步驟流程（SELECT \arrowright{} ADAPT \arrowright{} APPLY）重新設計以應用於自然語言推論（NLI）任務。
+  \item 於 IMPPRES 資料集進行系統性實驗（每種觸發詞 95 個任務），評估 GPT-4o 對分裂句、條件句、情態詞等語言觸發詞的處理能力。
+  \item 整體準確率提升約 10\%；並透過深入誤差分析指出模型的系統性弱點。
+\end{itemize}
+
+\section{專業技能}
+\begin{itemize}[label={},leftmargin=0pt,itemsep=0.7mm]
+  \item \textbf{語言:}\ 中文（母語）、英文（流利）
+  \item \textbf{程式語言:}\ Python
+  \item \textbf{框架:}\ LangGraph、LangChain
+  \item \textbf{工具:}\ AWS CLI、Docker
+  \item \textbf{證照:}\ 多益（聽讀 985、口說 180、寫作 170）、AWS SAA（Solutions Architect Associate）
+\end{itemize}
+
+\end{document}
