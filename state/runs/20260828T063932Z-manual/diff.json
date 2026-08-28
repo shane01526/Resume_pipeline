@@ -1,0 +1,35 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": null,
+          "before": "2025-10-01",
+          "field": "date"
+        },
+        {
+          "after": "Conference Paper",
+          "before": null,
+          "field": "type"
+        },
+        {
+          "after": "ROCLING 2025",
+          "before": null,
+          "field": "venue"
+        }
+      ],
+      "key": "pub:examining-llm-s-ability-to-judge-presuppositions-a-comparative-study-of-zero-shot-and-self-discover-nli-prompting",
+      "kind": "modified",
+      "label": "Examining LLM's Ability to Judge Presuppositions: A Comparative Study of Zero-Shot and Self-Discover-NLI Prompting",
+      "notion_page_id": "3b525b0d-3537-81a2-bff7-fce57faffe06",
+      "section": "publications"
+    }
+  ],
+  "counts": {
+    "added": 0,
+    "modified": 1,
+    "removed": 0
+  },
+  "is_first_run": false
+}
