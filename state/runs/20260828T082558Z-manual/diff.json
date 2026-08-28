@@ -1,0 +1,134 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [
+        "-Member of NTU Chinese-English Translation Program"
+      ],
+      "fields": [
+        {
+          "after": "2 bullet(s)",
+          "before": "3 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "edu:national-taiwan-university-ntu",
+      "kind": "modified",
+      "label": "National Taiwan University (NTU)",
+      "notion_page_id": "3b525b0d-3537-8103-9374-f259b9df04f8",
+      "section": "education"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Computational Linguistics",
+          "before": "Phonology, Computational Linguistics",
+          "field": "coursework"
+        }
+      ],
+      "key": "edu:national-yang-ming-chiao-tung-university-nycu",
+      "kind": "modified",
+      "label": "National Yang Ming Chiao Tung University (NYCU)",
+      "notion_page_id": "3b525b0d-3537-81e9-896b-ed7f19bb7487",
+      "section": "education"
+    },
+    {
+      "bullet_diff": [
+        "-Optimized AI News agent orchestration logic, data ETL, LINE integration and AWS deploy architecture.",
+        "-Built a recording-ASR-based BRD auto-revising agent with human-in-the-loop audit.",
+        "-Deployed a speech-driven form-filling service using streaming LLM on AWS for enterprise usage.",
+        "+Developed LLM agents for optimizing internal business use .Owning both the AI\napplication layer and the cloud-oriented deployment infrastructure."
+      ],
+      "fields": [
+        {
+          "after": "AI Engineer & System Design Intern",
+          "before": "ML/AI Engineer Intern",
+          "field": "role"
+        },
+        {
+          "after": "1 bullet(s)",
+          "before": "3 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "exp:cathay-financial-holdings-ddt-ai:2026-02",
+      "kind": "modified",
+      "label": "Cathay Financial Holdings — DDT AI",
+      "notion_page_id": "3b525b0d-3537-8135-a2e4-da7824d25dd3",
+      "section": "experiences"
+    },
+    {
+      "bullet_diff": [
+        "-Architected a LINE LIFF App career counseling chatbot with an n8n-based RPA workflow and managed user data with Supabase.",
+        "-Supported Enterprise Cloud Platform education courses as technical support.",
+        "+A dual delivery-and-support role: built an internal-facing application while serving as front-line technical support for enterprise course participants."
+      ],
+      "fields": [
+        {
+          "after": "1 bullet(s)",
+          "before": "2 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "exp:taiwan-ai-academy-aia:2025-06",
+      "kind": "modified",
+      "label": "Taiwan AI Academy (AIA)",
+      "notion_page_id": "3b525b0d-3537-8152-bd96-f1fe85f96b33",
+      "section": "experiences"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": null,
+          "before": "node:20-slim image with ffmpeg, --no-cache builds",
+          "field": "detail"
+        }
+      ],
+      "key": "skill:Tools:docker",
+      "kind": "modified",
+      "label": "Docker",
+      "notion_page_id": "3bf25b0d-3537-81f3-9ae3-cf269c2a27ab",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": null,
+          "before": "register-task-definition, create-service, update-service, logs tail",
+          "field": "detail"
+        }
+      ],
+      "key": "skill:Tools:aws-cli",
+      "kind": "modified",
+      "label": "AWS CLI",
+      "notion_page_id": "3bf25b0d-3537-81f3-9732-f89c4869cbf7",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [],
+      "key": "skill:Cloud & Infra:aws",
+      "kind": "removed",
+      "label": "AWS",
+      "notion_page_id": "3b525b0d-3537-8130-a8d6-e99fe1e61ace",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [],
+      "key": "skill:Tools:microsoft-office",
+      "kind": "removed",
+      "label": "Microsoft Office",
+      "notion_page_id": "3b525b0d-3537-8180-8e07-d766d62fdbdc",
+      "section": "skills"
+    }
+  ],
+  "counts": {
+    "added": 0,
+    "modified": 6,
+    "removed": 2
+  },
+  "is_first_run": false
+}
