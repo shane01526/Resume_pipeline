@@ -8,10 +8,10 @@
   },
   "created_at": "2026-08-28T09:02:54.474141Z",
   "decided_by": null,
-  "error": null,
+  "error": "RemoteProtocolError: Server disconnected without sending a response.",
   "id": "20260828T090254Z-manual",
   "notion_run_page_id": null,
-  "status": "Building",
+  "status": "Failed",
   "trigger": "Manual",
-  "updated_at": "2026-08-28T09:02:54.474608Z"
+  "updated_at": "2026-08-28T09:03:13.925167Z"
 }
