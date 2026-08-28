@@ -14,11 +14,11 @@
     "removed": 6
   },
   "created_at": "2026-08-28T06:26:13.928959Z",
-  "decided_by": null,
+  "decided_by": "web",
   "error": null,
   "id": "20260828T062613Z-manual",
   "notion_run_page_id": null,
-  "status": "Pending Approval",
+  "status": "Approved",
   "trigger": "Manual",
-  "updated_at": "2026-08-28T06:27:33.413439Z"
+  "updated_at": "2026-08-28T06:28:57.203812Z"
 }
