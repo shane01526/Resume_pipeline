@@ -1,0 +1,219 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Cathay Financial Holdings — DDT AI",
+          "before": null,
+          "field": "affiliation"
+        }
+      ],
+      "key": "proj:voice-notion-cloud-first-standup-assistant",
+      "kind": "modified",
+      "label": "Voice-Notion — Cloud-First Standup Assistant",
+      "notion_page_id": "3bf25b0d-3537-8124-974d-c8d5250cb599",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Cathay Financial Holdings — DDT AI",
+          "before": null,
+          "field": "affiliation"
+        },
+        {
+          "after": "Built an internal AI research report query assistant using a four-layer architecture (Interface / Application / Data / External Services)., Designed a three-scenario classification system (LLM intent detection + Python state machine) for intelligent routing across explicit, fuzzy, and out-of-scope queries., Implemented asynchronous Lambda self-invocation to overcome LINE Webhook's 1-second timeout, supporting 5–15 second LLM inference + RAG retrieval pipelines., Built a full ETL pipeline (Google Sheets → Bedrock Embedding → OpenSearch) with multi-dimensional filtering by topic, source, date, and subscription tier.",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "Cathay Financial Holdings, DDT AI",
+          "before": null,
+          "field": "context"
+        },
+        {
+          "after": "2026-03-01",
+          "before": null,
+          "field": "date"
+        },
+        {
+          "after": "yes",
+          "before": null,
+          "field": "highlight"
+        },
+        {
+          "after": "AI News Agent — Three-Scenario Routing Chatbot",
+          "before": null,
+          "field": "name"
+        },
+        {
+          "after": "100",
+          "before": null,
+          "field": "priority"
+        },
+        {
+          "after": "LLM, RAG, AWS, ETL, LINE",
+          "before": null,
+          "field": "tags"
+        }
+      ],
+      "key": "proj:ai-news-agent-three-scenario-routing-chatbot",
+      "kind": "added",
+      "label": "AI News Agent — Three-Scenario Routing Chatbot",
+      "notion_page_id": "3b525b0d-3537-8131-94fc-e5ea563f818f",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [],
+      "key": "proj:llm-reasoning-research-self-discover-nli",
+      "kind": "removed",
+      "label": "LLM Reasoning Research — Self-Discover-NLI",
+      "notion_page_id": "3b525b0d-3537-81a2-bff7-fce57faffe06",
+      "section": "projects"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Developed and presented the \"Self-Discover-NLI\" prompt engineering framework, adapting the three-step Self-Discover pipeline (SELECT → ADAPT → APPLY) specifically for Natural Language Inference (NLI) tasks., Conducted systematic experiments on the IMPPRES dataset (95 tasks per trigger type), evaluating GPT-4o's handling of clefts, conditionals, modals, and other linguistic triggers., Achieved ~10% overall accuracy improvement; performed in-depth error analysis identifying systematic model weaknesses.",
+          "before": null,
+          "field": "bullets"
+        },
+        {
+          "after": "2025-10-01",
+          "before": null,
+          "field": "date"
+        },
+        {
+          "after": "95",
+          "before": null,
+          "field": "priority"
+        },
+        {
+          "after": "Examining LLM's Ability to Judge Presuppositions: A Comparative Study of Zero-Shot and Self-Discover-NLI Prompting",
+          "before": null,
+          "field": "title"
+        }
+      ],
+      "key": "pub:examining-llm-s-ability-to-judge-presuppositions-a-comparative-study-of-zero-shot-and-self-discover-nli-prompting",
+      "kind": "added",
+      "label": "Examining LLM's Ability to Judge Presuppositions: A Comparative Study of Zero-Shot and Self-Discover-NLI Prompting",
+      "notion_page_id": "3b525b0d-3537-81a2-bff7-fce57faffe06",
+      "section": "publications"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Certificates",
+          "before": null,
+          "field": "category"
+        },
+        {
+          "after": "Solutions Architect Associate",
+          "before": null,
+          "field": "detail"
+        },
+        {
+          "after": "AWS SAA",
+          "before": null,
+          "field": "name"
+        }
+      ],
+      "key": "skill:Certificates:aws-saa",
+      "kind": "added",
+      "label": "AWS SAA",
+      "notion_page_id": "3ca25b0d-3537-80d2-966e-e0925964ffb7",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Frameworks",
+          "before": null,
+          "field": "category"
+        },
+        {
+          "after": "LangChain",
+          "before": null,
+          "field": "name"
+        }
+      ],
+      "key": "skill:Frameworks:langchain",
+      "kind": "added",
+      "label": "LangChain",
+      "notion_page_id": "3ca25b0d-3537-801a-b493-c63b1d50f9c3",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "Lambda, Bedrock, OpenSearch, DynamoDB, Amazon ECR, EventBridge, Amazon SQS",
+          "before": "Lambda, Bedrock, OpenSearch",
+          "field": "detail"
+        }
+      ],
+      "key": "skill:Cloud & Infra:aws",
+      "kind": "modified",
+      "label": "AWS",
+      "notion_page_id": "3b525b0d-3537-8130-a8d6-e99fe1e61ace",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [],
+      "key": "skill:Cloud & Infra:amazon-ecr",
+      "kind": "removed",
+      "label": "Amazon ECR",
+      "notion_page_id": "3bf25b0d-3537-81c4-be42-edd349c7bb68",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [],
+      "key": "skill:Cloud & Infra:amazon-bedrock",
+      "kind": "removed",
+      "label": "Amazon Bedrock",
+      "notion_page_id": "3bf25b0d-3537-8113-8db2-e06905cde92f",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [],
+      "key": "skill:Cloud & Infra:amazon-eventbridge",
+      "kind": "removed",
+      "label": "Amazon EventBridge",
+      "notion_page_id": "3bf25b0d-3537-8149-8e06-c7273284e3e1",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [],
+      "key": "skill:Cloud & Infra:amazon-sqs",
+      "kind": "removed",
+      "label": "Amazon SQS",
+      "notion_page_id": "3bf25b0d-3537-8143-95f1-fa3f5fe2f03f",
+      "section": "skills"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [],
+      "key": "skill:Cloud & Infra:amazon-dynamodb",
+      "kind": "removed",
+      "label": "Amazon DynamoDB",
+      "notion_page_id": "3bf25b0d-3537-8111-93c2-da2d177d6d4c",
+      "section": "skills"
+    }
+  ],
+  "counts": {
+    "added": 4,
+    "modified": 2,
+    "removed": 6
+  },
+  "is_first_run": false
+}
