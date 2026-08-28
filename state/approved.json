@@ -149,7 +149,7 @@
         "Explore mode: 5-stage question bank (diverge → converge → challenge) with a live 5-dimension rubric workspace; emits a dual handoff (JSON + 200–400-word paragraph) that auto-transitions to Consult, compressing ideation to 5–10 min.",
         "Consult mode: Step 1 auto-drafts the BRD outline from per-BU YAML templates and adding status tags for each sections; Step 2 interviews only “needs_round2” tag with live-preview inline edit, keeping BU interview time to 20–30 min."
       ],
-      "confidence": "High",
+      "confidence": "Medium",
       "context": "Cathay Financial Holdings, DDT AI",
       "date": "2026-05-01",
       "highlight": true,
@@ -199,15 +199,15 @@
         "Achieved ~10% overall accuracy improvement; performed in-depth error analysis identifying systematic model weaknesses."
       ],
       "confidence": "High",
-      "date": "2025-10-01",
+      "date": null,
       "highlight": false,
       "notion_page_id": "3b525b0d-3537-81a2-bff7-fce57faffe06",
       "priority": 95,
       "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
       "title": "Examining LLM's Ability to Judge Presuppositions: A Comparative Study of Zero-Shot and Self-Discover-NLI Prompting",
-      "type": null,
+      "type": "Conference Paper",
       "url": null,
-      "venue": null
+      "venue": "ROCLING 2025"
     }
   ],
   "skills": [
