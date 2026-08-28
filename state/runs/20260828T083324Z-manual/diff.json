@@ -1,0 +1,28 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [
+        "-Relevant Coursework (expected): Phonology, Computational Linguistics",
+        "+Relevant Coursework (expected): Computational Linguistics"
+      ],
+      "fields": [
+        {
+          "after": "1 bullet(s)",
+          "before": "1 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "edu:national-yang-ming-chiao-tung-university-nycu",
+      "kind": "modified",
+      "label": "National Yang Ming Chiao Tung University (NYCU)",
+      "notion_page_id": "3b525b0d-3537-81e9-896b-ed7f19bb7487",
+      "section": "education"
+    }
+  ],
+  "counts": {
+    "added": 0,
+    "modified": 1,
+    "removed": 0
+  },
+  "is_first_run": false
+}
