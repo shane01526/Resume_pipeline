@@ -3,7 +3,6 @@
     {
       "bullets": [
         "Member of NTU Computational Linguistics Specialized Program",
-        "Member of NTU Chinese-English Translation Program",
         "Relevant Coursework: NLP, Computational Linguistics, Phonology, Semantics"
       ],
       "confidence": "High",
@@ -28,7 +27,7 @@
         "Relevant Coursework (expected): Phonology, Computational Linguistics"
       ],
       "confidence": "High",
-      "coursework": "Phonology, Computational Linguistics",
+      "coursework": "Computational Linguistics",
       "degree": "Master of Arts",
       "end": "2028-06-30",
       "expected": true,
@@ -45,9 +44,7 @@
   "experiences": [
     {
       "bullets": [
-        "Optimized AI News agent orchestration logic, data ETL, LINE integration and AWS deploy architecture.",
-        "Built a recording-ASR-based BRD auto-revising agent with human-in-the-loop audit.",
-        "Deployed a speech-driven form-filling service using streaming LLM on AWS for enterprise usage."
+        "Developed LLM agents for optimizing internal business use .Owning both the AI\napplication layer and the cloud-oriented deployment infrastructure."
       ],
       "confidence": "High",
       "end": null,
@@ -56,7 +53,7 @@
       "notion_page_id": "3b525b0d-3537-8135-a2e4-da7824d25dd3",
       "organization": "Cathay Financial Holdings — DDT AI",
       "priority": 100,
-      "role": "ML/AI Engineer Intern",
+      "role": "AI Engineer & System Design Intern",
       "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
       "start": "2026-02-01",
       "tags": [
@@ -71,8 +68,7 @@
     },
     {
       "bullets": [
-        "Architected a LINE LIFF App career counseling chatbot with an n8n-based RPA workflow and managed user data with Supabase.",
-        "Supported Enterprise Cloud Platform education courses as technical support."
+        "A dual delivery-and-support role: built an internal-facing application while serving as front-line technical support for enterprise course participants."
       ],
       "confidence": "High",
       "end": "2025-08-31",
@@ -210,7 +206,7 @@
     {
       "category": "Tools",
       "confidence": "Medium",
-      "detail": "node:20-slim image with ffmpeg, --no-cache builds",
+      "detail": null,
       "highlight": false,
       "name": "Docker",
       "notion_page_id": "3bf25b0d-3537-81f3-9ae3-cf269c2a27ab",
@@ -220,7 +216,7 @@
     {
       "category": "Tools",
       "confidence": "Medium",
-      "detail": "register-task-definition, create-service, update-service, logs tail",
+      "detail": null,
       "highlight": false,
       "name": "AWS CLI",
       "notion_page_id": "3bf25b0d-3537-81f3-9732-f89c4869cbf7",
@@ -234,16 +230,6 @@
       "highlight": false,
       "name": "TOEIC",
       "notion_page_id": "3b525b0d-3537-811b-b5d4-ceda43ab63ad",
-      "priority": 100,
-      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
-    },
-    {
-      "category": "Cloud & Infra",
-      "confidence": "High",
-      "detail": "Lambda, Bedrock, OpenSearch, DynamoDB, Amazon ECR, EventBridge, Amazon SQS",
-      "highlight": false,
-      "name": "AWS",
-      "notion_page_id": "3b525b0d-3537-8130-a8d6-e99fe1e61ace",
       "priority": 100,
       "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
     },
@@ -275,16 +261,6 @@
       "name": "English",
       "notion_page_id": "3b525b0d-3537-816e-b731-d2060755d2a9",
       "priority": 90,
-      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
-    },
-    {
-      "category": "Tools",
-      "confidence": "High",
-      "detail": null,
-      "highlight": false,
-      "name": "Microsoft Office",
-      "notion_page_id": "3b525b0d-3537-8180-8e07-d766d62fdbdc",
-      "priority": 80,
       "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
     },
     {
