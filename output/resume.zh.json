@@ -3,7 +3,6 @@
     {
       "bullets": [
         "參與臺大計算語言學學程",
-        "參與臺大中英翻譯學程",
         "修習課程：自然語言處理、計算語言學、音韻學、語意學"
       ],
       "confidence": "High",
@@ -28,7 +27,7 @@
         "預計修習課程：音韻學、計算語言學"
       ],
       "confidence": "High",
-      "coursework": "音韻學、計算語言學",
+      "coursework": "計算語言學",
       "degree": "語言學碩士",
       "end": "2028-06-30",
       "expected": true,
@@ -45,9 +44,7 @@
   "experiences": [
     {
       "bullets": [
-        "優化 AI News agent 的編排邏輯、資料 ETL、LINE 整合與 AWS 部署架構。",
-        "打造以錄音 ASR 為基礎、具 human-in-the-loop 審核的 BRD 自動修訂 agent。",
-        "於 AWS 上以 streaming LLM 部署語音驅動的表單填寫服務，供企業內部使用。"
+        "開發針對內部業務流程優化的 LLM agent，並設計與部署其背後的雲端架構 。負責 AI 應用層與其運行的生產環境基礎架構。"
       ],
       "confidence": "High",
       "end": null,
@@ -71,8 +68,7 @@
     },
     {
       "bullets": [
-        "以 n8n RPA 工作流架設 LINE LIFF 職涯諮詢聊天機器人，並以 Supabase 管理使用者資料。",
-        "擅任企業雲端平台教育課程的技術支援。"
+        "開發與支援並行的角色：開發AI 原生應用，同時擔任企業課程現場的第一線技術支援。"
       ],
       "confidence": "High",
       "end": "2025-08-31",
@@ -150,7 +146,7 @@
     {
       "affiliation": "Cathay Financial Holdings — DDT AI",
       "bullets": [
-        "開發 Slack bot，將 mp4 口頭工作報告轉換為可確認的 Notion 頁面與任務，並提供每日自動化 standup 摘要",
+        "開發 Slack bot，將 mp4 口頭工作報告轉換為可確認的 Notion 頁面與任務，並每日自動產出 standup 摘要",
         "將單一實例的 Next.js 服務重新架構為雲原生 ECS Fargate 部署，搭配 DynamoDB、SQS 與 EventBridge，實現水平擴展與零資料遺失的滾動更新",
         "以維運成本與 private subnet 條件評估 Lambda + API Gateway、自管 EC2 與 App Runner，並與 ECS Fargate 比較"
       ],
@@ -210,7 +206,7 @@
     {
       "category": "Tools",
       "confidence": "Medium",
-      "detail": "node:20-slim image with ffmpeg、--no-cache builds",
+      "detail": null,
       "highlight": false,
       "name": "Docker",
       "notion_page_id": "3bf25b0d-3537-81f3-9ae3-cf269c2a27ab",
@@ -220,7 +216,7 @@
     {
       "category": "Tools",
       "confidence": "Medium",
-      "detail": "register-task-definition、create-service、update-service、logs tail",
+      "detail": null,
       "highlight": false,
       "name": "AWS CLI",
       "notion_page_id": "3bf25b0d-3537-81f3-9732-f89c4869cbf7",
@@ -234,16 +230,6 @@
       "highlight": false,
       "name": "多益",
       "notion_page_id": "3b525b0d-3537-811b-b5d4-ceda43ab63ad",
-      "priority": 100,
-      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
-    },
-    {
-      "category": "Cloud & Infra",
-      "confidence": "High",
-      "detail": "Lambda、Bedrock、OpenSearch、DynamoDB、Amazon ECR、EventBridge、Amazon SQS",
-      "highlight": false,
-      "name": "AWS",
-      "notion_page_id": "3b525b0d-3537-8130-a8d6-e99fe1e61ace",
       "priority": 100,
       "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
     },
@@ -275,16 +261,6 @@
       "name": "英文",
       "notion_page_id": "3b525b0d-3537-816e-b731-d2060755d2a9",
       "priority": 90,
-      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
-    },
-    {
-      "category": "Tools",
-      "confidence": "High",
-      "detail": null,
-      "highlight": false,
-      "name": "Microsoft Office",
-      "notion_page_id": "3b525b0d-3537-8180-8e07-d766d62fdbdc",
-      "priority": 80,
       "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
     },
     {
