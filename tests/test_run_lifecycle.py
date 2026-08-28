@@ -521,3 +521,62 @@ def test_bad_signature_is_rejected_before_the_run_is_looked_up(
 
     assert caught.value.status_code == 403
     assert loads == [], "the run was loaded despite an invalid signature"
+
+
+# --- render orchestration -----------------------------------------------------
+
+
+async def test_latex_source_is_written_without_tectonic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No Tectonic must cost you the compiled PDFs only, not the .tex.
+
+    The source needs no external tool, and it is the artifact you open in Overleaf — so a
+    Windows checkout, or an image that lost the binary, should still produce it. Before
+    this, `tectonic_available()` being False skipped the whole LaTeX branch.
+    """
+    from pipeline.models import Resume
+    from pipeline.render import latex as latex_renderer
+    from pipeline.runner import _render_all
+
+    fixture = Path(__file__).parent / "fixtures" / "resume.sample.json"
+    resume_en = Resume.model_validate_json(fixture.read_text(encoding="utf-8"))
+    resume_zh = resume_en.model_copy(update={"lang": "zh"})
+
+    monkeypatch.setattr(latex_renderer, "tectonic_available", lambda _s: False)
+    # The real repo_root, because rendering reads templates/resume.tex.j2 from it. Nothing
+    # is written there: the output directory is passed in explicitly.
+    settings = Settings(renderers=["latex"])
+
+    written = await _render_all(resume_en, resume_zh, tmp_path / "artifacts", settings)
+
+    assert [path.relative_to(tmp_path / "artifacts").as_posix() for path in written] == [
+        "en/resume.tex",
+        "zh/resume.tex",
+    ]
+    assert all(path.read_text(encoding="utf-8").startswith("% !TEX") for path in written)
+
+
+# --- publishing the artifacts -------------------------------------------------
+
+
+def test_publish_copies_every_document_format(tmp_path: Path) -> None:
+    """The .tex has to reach output/ too, or its download link 404s forever.
+
+    Also pins the exclusion: TeX build by-products must not be published alongside it.
+    """
+    from pipeline.publish import _copy_artifacts
+
+    artifacts = tmp_path / "artifacts"
+    for lang in ("en", "zh"):
+        (artifacts / lang).mkdir(parents=True)
+        for name in ("resume.pdf", "resume.latex.pdf", "resume.docx", "resume.tex", "resume.log"):
+            (artifacts / lang / name).write_bytes(b"x")
+    (artifacts / "resume.json").write_text("{}", encoding="utf-8")
+
+    output = tmp_path / "output"
+    published = {p.relative_to(output).as_posix() for p in _copy_artifacts(artifacts, output)}
+
+    assert "en/resume.tex" in published
+    assert "zh/resume.tex" in published
+    assert not [name for name in published if name.endswith(".log")]

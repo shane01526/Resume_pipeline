@@ -31,6 +31,9 @@ FORMATS = {
         "resume.docx",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ),
+    # The LaTeX source, for editing in Overleaf. `application/x-tex` rather than
+    # `text/plain` so a browser downloads it instead of rendering it as a wall of text.
+    "tex": ("resume.tex", "application/x-tex"),
 }
 
 LANGS = {"en", "zh"}
@@ -91,5 +94,5 @@ def _download_name(output_dir: Path, lang: str, fmt: str) -> str:
         except (OSError, ValueError, KeyError) as exc:
             log.warning("could not read name from %s: %s", source.name, exc)
 
-    suffix = {"pdf": "pdf", "latex.pdf": "latex.pdf", "docx": "docx"}[fmt]
+    suffix = {"pdf": "pdf", "latex.pdf": "latex.pdf", "docx": "docx", "tex": "tex"}[fmt]
     return f"{stem}_Resume_{lang.upper()}.{suffix}"

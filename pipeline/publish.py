@@ -33,6 +33,16 @@ class PublishError(RuntimeError):
     pass
 
 
+# What gets published from a run's artifacts, besides the two JSON snapshots (which are
+# handled separately because they must be written last). One constant rather than the same
+# tuple in `_copy_artifacts` and `_publish_via_api`: a format present in one and missing
+# from the other is rendered and then never committed, and only on Cloud Run — where
+# nobody is reading the log.
+#
+# `.tex` is here because it is the Overleaf-editable source of the LaTeX PDF.
+PUBLISHED_SUFFIXES = (".pdf", ".docx", ".tex")
+
+
 async def publish_run(run_id: str, decided_by: str = "web") -> None:
     """Publish `run_id`. Never raises — failures are recorded on the run."""
     settings = get_settings()
@@ -94,7 +104,7 @@ async def _publish(run: Run, store: RunStore, settings: Settings, decided_by: st
 
     tag = f"resume-{datetime.now(UTC):%Y%m%d-%H%M}"
     # Two paths, because the two hosts differ in what they can offer. With a working copy
-    # (Render, local) git gives one atomic commit for all six artifacts plus a tag. On
+    # (Render, local) git gives one atomic commit for all eight artifacts plus a tag. On
     # Cloud Run there is no working copy, so each file is a separate API commit — less
     # tidy, but the alternative is cloning the repo on every cold start.
     if settings.storage_backend == "github":
@@ -132,7 +142,7 @@ def _copy_artifacts(source: Path, output_dir: Path) -> list[Path]:
         if not lang_dir.is_dir():
             continue
         for path in sorted(lang_dir.iterdir()):
-            if path.suffix in (".pdf", ".docx"):
+            if path.suffix in PUBLISHED_SUFFIXES:
                 target = output_dir / lang / path.name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(path, target)
@@ -145,8 +155,8 @@ def _publish_via_api(run: Run, published: list[Path], settings: Settings, tag: s
     """Write the artifacts through the GitHub Contents API, one commit per file.
 
     Used where there is no working copy. Ordering matters: the JSON snapshots go last, so
-    if a PDF write fails the baseline still describes the previously published state and
-    the next run's diff stays meaningful.
+    if a document write fails the baseline still describes the previously published state
+    and the next run's diff stays meaningful.
 
     Returns the head commit sha and creates `tag`, so this path records the same two things
     the working-copy path does.
@@ -155,10 +165,10 @@ def _publish_via_api(run: Run, published: list[Path], settings: Settings, tag: s
 
     storage = GitHubStorage(settings)
     try:
-        pdfs = [p for p in published if p.suffix in (".pdf", ".docx")]
+        documents = [p for p in published if p.suffix in PUBLISHED_SUFFIXES]
         snapshots = [p for p in published if p.suffix == ".json"]
 
-        for path in [*pdfs, *snapshots]:
+        for path in [*documents, *snapshots]:
             key = path.relative_to(settings.repo_root).as_posix()
             storage.write(key, path.read_bytes(), f"Publish {key} (run {run.id})")
             log.info("published %s", key)

@@ -166,19 +166,23 @@ def _change_listing(diff: ResumeDiff) -> str:
 
 
 async def notify_published(run: Run, settings: Settings) -> None:
-    """Confirm a successful publish, with the fresh download links."""
-    from web.slack import post_message
+    """Confirm a successful publish, with the fresh download links.
 
-    base = settings.public_base_url
+    Every format, one line per language. This used to link the two PDFs and end with
+    "所有格式：.../resume/en.pdf ⋯" — an ellipsis is not a link, so the other formats were
+    unreachable from the one message you are certain to read, and adding `.tex` to
+    `/resume latest` alone left it invisible here.
+    """
+    from web.slack import LANG_LABELS, post_message, published_links
+
     commit = f"`{run.commit_sha[:8]}`" if run.commit_sha else "(no commit)"
-    links = " · ".join(
-        f"<{base}/resume/{lang}.pdf|{label} PDF>"
-        for lang, label in (("en", "英文"), ("zh", "中文"))
-    )
-    await post_message(
-        settings,
-        f"✅ 履歷已發布 {commit}\n{links}\n所有格式：{base}/resume/en.pdf ⋯",
-    )
+    lines = []
+    for lang, lang_label in LANG_LABELS:
+        if formats := published_links(settings, lang):
+            joined = " · ".join(f"<{url}|{label}>" for label, url in formats)
+            lines.append(f"{lang_label}：{joined}")
+
+    await post_message(settings, "\n".join([f"✅ 履歷已發布 {commit}", *lines]))
 
 
 async def notify_no_change(run: Run, settings: Settings) -> None:

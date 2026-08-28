@@ -1,3 +1,4 @@
+% !TEX program = xelatex
 \#{
   LaTeX resume template, compiled with Tectonic (XeTeX engine).
 
@@ -9,6 +10,18 @@
   Geometry and type sizes mirror templates/styles/print.css. When a token changes there,
   change it here too — the two engines must produce the same page.
 }
+\#{ The block below is a LaTeX comment, not a Jinja one, so it survives into the generated
+   resume.tex — it is addressed to whoever opens that file in Overleaf. }
+% ---------------------------------------------------------------------------
+% 這份 .tex 是 resume pipeline 從 Notion 自動產生的，可以直接在 Overleaf 改。
+%
+% 1. 編譯器要用 XeLaTeX（不是 pdfLaTeX）—— 第一行的 magic comment 通常會自動選好；
+%    沒有的話到 Menu → Compiler 改。xeCJK 與 fontspec 都需要它。
+% 2. 字型是編譯時才決定的：找不到 Noto 就會自動退到 TeX Live 內建字型。
+%    若仍因缺字型編不過，只要改下面那幾行 fallback 的字型名字就行。
+% 3. 在這裡的手改只存在於 Overleaf。下一次 pipeline 產出會覆蓋這個檔案 ——
+%    要永久生效請改 repo 裡的 templates/resume.tex.j2。
+% ---------------------------------------------------------------------------
 \documentclass[11pt,a4paper]{article}
 
 \#{ --- Fonts. fontspec requires XeTeX/LuaTeX; Tectonic gives us XeTeX. --- }
@@ -16,21 +29,53 @@
 \usepackage{xeCJK}
 
 \#{ Noto covers Latin and CJK in one family, so a stray English word inside Chinese
-   text keeps a consistent face rather than falling back to something mismatched. }
-\setmainfont{\VAR{fonts.serif}}
-\setsansfont{\VAR{fonts.sans}}
-\setCJKmainfont{\VAR{fonts.cjk_serif}}
-\setCJKsansfont{\VAR{fonts.cjk_sans}}
+   text keeps a consistent face rather than falling back to something mismatched.
+
+   Each family is wrapped in \IfFontExistsTF so the same source compiles on a machine
+   that has no Noto -- Overleaf being the case this is for. Without the guard, fontspec
+   raises "The font ... cannot be found" and nothing is typeset at all.
+
+   The CJK chain has two fallbacks because the obvious one is wrong on its own: Fandol
+   is a Simplified face and this resume is Traditional, so missing glyphs would come out
+   as tofu. arphic's uming is tried first for that reason. }
+\IfFontExistsTF{\VAR{fonts.serif}}
+  {\setmainfont{\VAR{fonts.serif}}}
+  {\setmainfont{\VAR{fonts.serif_fallback}}}
+\IfFontExistsTF{\VAR{fonts.sans}}
+  {\setsansfont{\VAR{fonts.sans}}}
+  {\setsansfont{\VAR{fonts.sans_fallback}}}
+\IfFontExistsTF{\VAR{fonts.cjk_serif}}
+  {\setCJKmainfont{\VAR{fonts.cjk_serif}}}
+  {\IfFontExistsTF{\VAR{fonts.cjk_serif_fallback}}
+    {\setCJKmainfont{\VAR{fonts.cjk_serif_fallback}}}
+    {\setCJKmainfont{\VAR{fonts.cjk_serif_fallback2}}}}
+\IfFontExistsTF{\VAR{fonts.cjk_sans}}
+  {\setCJKsansfont{\VAR{fonts.cjk_sans}}}
+  {\IfFontExistsTF{\VAR{fonts.cjk_sans_fallback}}
+    {\setCJKsansfont{\VAR{fonts.cjk_sans_fallback}}}
+    {\setCJKsansfont{\VAR{fonts.cjk_sans_fallback2}}}}
 
 \#{ Symbols the Latin faces lack. Noto Serif has neither the bullet marker U+25AA nor the
    arrows U+2192 and U+2194 that appear in project descriptions, so XeTeX drew them as
    tofu boxes -- visible only in a rendered page, never in the source or the text layer.
    Declaring one command per symbol from a font that does have them is more predictable
-   than a global fallback chain, which would silently change other glyphs too. }
-\newfontfamily\symbolfont{\VAR{fonts.symbol}}
-\newcommand{\bulletmark}{{\symbolfont \VAR{bullet_marker}}}
-\newcommand{\arrowright}{{\symbolfont \VAR{arrow_right}}}
-\newcommand{\arrowboth}{{\symbolfont \VAR{arrow_both}}}
+   than a global fallback chain, which would silently change other glyphs too.
+
+   \newfontfamily itself errors on a missing font, so it has to live inside the true
+   branch. The false branch draws the same three marks with no font dependency at all:
+   a rule for the square, math arrows from the always-present math fonts. }
+\IfFontExistsTF{\VAR{fonts.symbol}}
+  {%
+    \newfontfamily\symbolfont{\VAR{fonts.symbol}}
+    \newcommand{\bulletmark}{{\symbolfont \VAR{bullet_marker}}}
+    \newcommand{\arrowright}{{\symbolfont \VAR{arrow_right}}}
+    \newcommand{\arrowboth}{{\symbolfont \VAR{arrow_both}}}
+  }
+  {%
+    \newcommand{\bulletmark}{\rule[0.05ex]{0.32em}{0.32em}}
+    \newcommand{\arrowright}{\ensuremath{\rightarrow}}
+    \newcommand{\arrowboth}{\ensuremath{\leftrightarrow}}
+  }
 
 \#{ xeCJK classifies the em dash and en dash as CJK punctuation, and CJK punctuation gets
    CJK spacing -- which means the space BEFORE them is deleted. The English resume came

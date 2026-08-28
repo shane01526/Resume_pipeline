@@ -1,6 +1,6 @@
 """Local end-to-end dry run, for iterating on templates without touching Notion.
 
-    python scripts/local_run.py --render-only        # fixture -> all six artifacts
+    python scripts/local_run.py --render-only        # fixture -> all eight artifacts
     python scripts/local_run.py --render-only --png  # also rasterize page images
     python scripts/local_run.py                      # read Notion, then render
 
@@ -101,6 +101,10 @@ async def main() -> int:
         )
 
     if "latex" in settings.renderers:
+        # Needs no external tool, so it lands even on a machine that cannot compile.
+        for resume, path in ((en, out / "en" / "resume.tex"), (zh, out / "zh" / "resume.tex")):
+            written.append(latex_renderer.write_tex(resume, settings, path))
+
         if latex_renderer.tectonic_available(settings):
             for resume, path in (
                 (en, out / "en" / "resume.latex.pdf"),
@@ -108,7 +112,7 @@ async def main() -> int:
             ):
                 written.append(latex_renderer.render_pdf(resume, settings, path))
         else:
-            log.warning("tectonic not on PATH — skipping the LaTeX renderer")
+            log.warning("tectonic not on PATH — .tex written, but not compiled")
 
     if "docx" in settings.renderers:
         for resume, path in ((en, out / "en" / "resume.docx"), (zh, out / "zh" / "resume.docx")):

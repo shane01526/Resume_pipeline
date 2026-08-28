@@ -9,7 +9,7 @@ Stage order and the reason for it:
     1-3  ingest → extract → reconcile   write candidates to Notion for review
     4    read Notion                    Approved rows only → resume.json
     5    translate                      → resume.zh.json
-    6    render                          six artifacts
+    6    render                          eight artifacts
     7    diff                            vs the last approved snapshot
     8    notify                          Slack, but only if something changed
 
@@ -174,6 +174,14 @@ async def _render_all(
         )
 
     if "latex" in settings.renderers:
+        # The source first and unconditionally: it needs no external tool, and it is what
+        # you open in Overleaf. A machine without Tectonic still produces it.
+        for resume, path in (
+            (resume_en, out / "en" / "resume.tex"),
+            (resume_zh, out / "zh" / "resume.tex"),
+        ):
+            written.append(latex_renderer.write_tex(resume, settings, path))
+
         if latex_renderer.tectonic_available(settings):
             for resume, path in (
                 (resume_en, out / "en" / "resume.latex.pdf"),
@@ -181,8 +189,8 @@ async def _render_all(
             ):
                 written.append(latex_renderer.render_pdf(resume, settings, path))
         else:
-            # Degrade rather than fail: five artifacts and a warning beat no review at all.
-            log.warning("tectonic unavailable — LaTeX artifacts skipped")
+            # Degrade rather than fail: six artifacts and a warning beat no review at all.
+            log.warning("tectonic unavailable — the compiled LaTeX PDFs are skipped")
 
     if "docx" in settings.renderers:
         for resume, path in (

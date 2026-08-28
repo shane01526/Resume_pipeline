@@ -79,6 +79,22 @@ FONTS = {
     # Carries the geometric symbols the serif faces lack (▪ → ↔). Verified with
     # `fc-list ":charset=25AA"` inside the image: Noto Serif is not in that list.
     "symbol": "Noto Sans CJK TC",
+    # --- Fallbacks, for compiling the .tex somewhere other than this image ---
+    # The names above are system fonts the Dockerfile installs (fonts-noto-cjk,
+    # fonts-noto-core). The generated `resume.tex` is published so it can be opened in
+    # Overleaf, which ships TeX Live rather than a Linux font set — there, an unguarded
+    # \setmainfont aborts the compile. The template wraps each family in
+    # \IfFontExistsTF and falls through to these, all of which are in a full TeX Live.
+    #
+    # Fandol is second, not first, for the CJK families: it is a Simplified face, and this
+    # resume is Traditional, so it would render missing glyphs as tofu. arphic's uming/ukai
+    # cover Traditional, hence the order.
+    "serif_fallback": "TeX Gyre Termes",
+    "sans_fallback": "TeX Gyre Heros",
+    "cjk_serif_fallback": "uming.ttc",
+    "cjk_serif_fallback2": "FandolSong-Regular.otf",
+    "cjk_sans_fallback": "ukai.ttc",
+    "cjk_sans_fallback2": "FandolHei-Regular.otf",
 }
 
 # U+25AA, matching --bullet in print.css and BULLET in docx.py. Deliberately the literal
@@ -213,6 +229,26 @@ def render_tex(resume: Resume, settings: Settings) -> str:
         fmt_education_date=lambda item: fmt_education_date(item, lang),
         fmt_degree=lambda item: fmt_degree(item, lang),
     )
+
+
+def write_tex(resume: Resume, settings: Settings, output: Path) -> Path:
+    """Write the LaTeX source itself as an artifact. Returns the written path.
+
+    Published alongside the compiled PDF so the resume can be opened in Overleaf and
+    tuned by hand for one submission. Pure Jinja — no Tectonic, so this runs on a machine
+    that cannot compile (Windows without Tectonic included), and `render_pdf` skipping is
+    no longer the same thing as having no LaTeX output at all.
+
+    Newlines are forced to LF: .gitattributes normalises the repo to LF, so writing CRLF
+    here would make every publish show the whole file as changed.
+    """
+    source = render_tex(resume, settings)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(source)
+
+    log.info("rendered %s (%.1f KB)", output.name, output.stat().st_size / 1024)
+    return output
 
 
 def tectonic_available(settings: Settings) -> bool:

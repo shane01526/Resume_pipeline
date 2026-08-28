@@ -84,7 +84,7 @@ jobs:
       - name: Compile the LaTeX resume in the image
         # Renamed from "Render all six artifacts under a 512MB limit", which described
         # neither what runs nor what it proves: these two files exercise the LaTeX path
-        # (plus its golden checks), not a full six-artifact render.
+        # (plus its golden checks), not a full eight-artifact render.
         #
         # The 512m cap is a floor-guard against a renderer that suddenly needs far more —
         # it deliberately does NOT model Cloud Run. Cloud Run counts page cache toward the

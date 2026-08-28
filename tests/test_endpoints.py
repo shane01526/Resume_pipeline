@@ -333,6 +333,27 @@ def test_latex_variant_route_resolves(client: TestClient, settings: Settings) ->
     assert client.get("/resume/zh.latex.pdf").status_code == 200
 
 
+def test_latex_source_is_downloadable(client: TestClient, settings: Settings) -> None:
+    """The .tex is what you upload to Overleaf, so it needs the same stable link."""
+    target = settings.output_dir / "en" / "resume.tex"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("% !TEX program = xelatex\n", encoding="utf-8")
+    (settings.output_dir / "resume.json").write_text(
+        json.dumps({"profile": {"name": "WU, YU-HSUAN"}}), encoding="utf-8"
+    )
+
+    response = client.get("/resume/en.tex")
+    assert response.status_code == 200
+    assert "WU_YU-HSUAN_Resume_EN.tex" in response.headers["content-disposition"]
+
+
+def test_index_lists_the_latex_source(client: TestClient) -> None:
+    """Every published format is advertised here; a missing one is invisible otherwise."""
+    downloads = client.get("/").json()["downloads"]
+    assert downloads["en.tex"].endswith("/resume/en.tex")
+    assert downloads["zh.tex"].endswith("/resume/zh.tex")
+
+
 # --- page images -------------------------------------------------------------
 
 
@@ -530,3 +551,63 @@ def test_unknown_subcommand_lists_the_valid_ones(slack_client: TestClient) -> No
 
     for valid in ("update", "status", "latest"):
         assert valid in text
+
+
+# --- Slack download links ----------------------------------------------------
+
+
+def _publish_all_formats(settings: Settings) -> None:
+    for lang in ("en", "zh"):
+        for name in ("resume.pdf", "resume.latex.pdf", "resume.docx", "resume.tex"):
+            target = settings.output_dir / lang / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(b"x")
+
+
+async def test_publish_notification_links_every_format(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The publish confirmation is the message you are sure to read, so nothing may be
+    missing from it — it once linked only the two PDFs and pointed at the rest with "⋯".
+    """
+    from pipeline.notify_slack import notify_published
+    from web.slack import DOWNLOAD_FORMATS
+
+    _publish_all_formats(settings)
+    posted: list[str] = []
+
+    async def fake_post(_settings: Settings, text: str, **_kwargs: object) -> None:
+        posted.append(text)
+
+    monkeypatch.setattr("web.slack.post_message", fake_post)
+
+    run = RunStore(settings).create(Trigger.MANUAL)
+    run.commit_sha = "0d489977deadbeef"
+    await notify_published(run, settings)
+
+    assert len(posted) == 1
+    for lang in ("en", "zh"):
+        for fmt, _label in DOWNLOAD_FORMATS:
+            assert f"/resume/{lang}.{fmt}" in posted[0], f"{lang}.{fmt} is not linked"
+
+
+async def test_publish_notification_omits_formats_that_were_not_rendered(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No Tectonic means no .latex.pdf; linking it anyway would hand you a 404."""
+    from pipeline.notify_slack import notify_published
+
+    _publish_all_formats(settings)
+    (settings.output_dir / "en" / "resume.latex.pdf").unlink()
+    posted: list[str] = []
+
+    async def fake_post(_settings: Settings, text: str, **_kwargs: object) -> None:
+        posted.append(text)
+
+    monkeypatch.setattr("web.slack.post_message", fake_post)
+
+    await notify_published(RunStore(settings).create(Trigger.MANUAL), settings)
+
+    assert "/resume/en.latex.pdf" not in posted[0]
+    assert "/resume/zh.latex.pdf" in posted[0]
+    assert "/resume/en.tex" in posted[0]

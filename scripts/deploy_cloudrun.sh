@@ -68,7 +68,7 @@ MEMORY="${MEMORY:-2Gi}"
 # is valid, but Tectonic and Chromium both benefit and the extra is only billed while a
 # request is in flight.
 CPU="${CPU:-2}"
-# Rendering six artifacts takes tens of seconds; the default 300s would cut a run short.
+# Rendering eight artifacts takes tens of seconds; the default 300s would cut a run short.
 TIMEOUT="${TIMEOUT:-900}"
 # One instance at a time. Two would race on the same repository state, and the loser's
 # commit would be rejected.

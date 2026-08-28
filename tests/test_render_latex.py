@@ -14,7 +14,7 @@ import pytest
 
 from pipeline.config import Settings, get_settings
 from pipeline.models import Resume
-from pipeline.render.latex import SIZES, SIZES_ZH, render_tex, tex_escape
+from pipeline.render.latex import FONTS, SIZES, SIZES_ZH, render_tex, tex_escape, write_tex
 
 FIXTURE = Path(__file__).parent / "fixtures" / "resume.sample.json"
 
@@ -179,7 +179,12 @@ def test_ampersand_in_content_is_escaped(resume_en: Resume, settings: Settings) 
 
 def test_document_is_complete(resume_en: Resume, settings: Settings) -> None:
     source = render_tex(resume_en, settings)
-    assert source.lstrip().startswith(r"\documentclass")
+    # Leading `%` lines are the compiler magic comment and the Overleaf notice, both of
+    # which are content of the published file — so this looks for the first real line.
+    first_code = next(
+        line for line in source.splitlines() if line.strip() and not line.startswith("%")
+    )
+    assert first_code.startswith(r"\documentclass")
     assert r"\begin{document}" in source
     assert source.rstrip().endswith(r"\end{document}")
 
@@ -231,3 +236,98 @@ def test_zh_skill_join_is_ideographic(resume_zh: Resume, settings: Settings) -> 
     """A Latin ', ' next to CJK glyphs sits at the wrong height."""
     source = render_tex(resume_zh, settings)
     assert "Mandarin（Native）、English（Fluent）" in source
+
+
+# --- Overleaf portability ----------------------------------------------------
+# The .tex is a published artifact, opened in Overleaf by hand. Overleaf ships TeX Live,
+# not this image's Linux font set, so the source has to survive the absence of every Noto
+# font. These assert on the generated preamble because that file is the deliverable.
+
+
+def test_declares_xelatex_on_the_first_line(resume_en: Resume, settings: Settings) -> None:
+    """Overleaf reads this magic comment to pick the compiler.
+
+    Without it the default is pdfLaTeX, which cannot load fontspec — the first thing a
+    reader would see is a compile error, not a resume.
+    """
+    assert render_tex(resume_en, settings).splitlines()[0] == "% !TEX program = xelatex"
+
+
+@pytest.mark.parametrize(
+    ("command", "primary", "fallbacks"),
+    [
+        ("setmainfont", "serif", ["serif_fallback"]),
+        ("setsansfont", "sans", ["sans_fallback"]),
+        ("setCJKmainfont", "cjk_serif", ["cjk_serif_fallback", "cjk_serif_fallback2"]),
+        ("setCJKsansfont", "cjk_sans", ["cjk_sans_fallback", "cjk_sans_fallback2"]),
+    ],
+)
+def test_every_font_family_is_guarded_with_a_fallback(
+    command: str, primary: str, fallbacks: list[str], resume_en: Resume, settings: Settings
+) -> None:
+    """An unguarded \\setmainfont aborts the whole compile where the font is missing."""
+    preamble = render_tex(resume_en, settings).split(r"\begin{document}")[0]
+
+    assert rf"\IfFontExistsTF{{{FONTS[primary]}}}" in preamble
+    for key in fallbacks:
+        assert rf"\{command}{{{FONTS[key]}}}" in preamble, f"{key} is not reachable"
+
+
+def test_cjk_fallback_prefers_a_traditional_face(resume_zh: Resume, settings: Settings) -> None:
+    """Fandol is Simplified-only, so it must be the last resort, not the first.
+
+    This resume is Traditional Chinese; falling straight to Fandol would typeset the
+    characters it lacks as tofu — a compile that succeeds and a document that is unusable,
+    which is worse than an error.
+    """
+    preamble = render_tex(resume_zh, settings).split(r"\begin{document}")[0]
+    assert preamble.index(FONTS["cjk_serif_fallback"]) < preamble.index(
+        FONTS["cjk_serif_fallback2"]
+    )
+    assert "Fandol" in FONTS["cjk_serif_fallback2"]
+
+
+def test_symbol_commands_are_defined_on_both_branches(
+    resume_en: Resume, settings: Settings
+) -> None:
+    """`\\bulletmark` and the arrows are emitted by tex_escape, so both branches need them.
+
+    The fallback branch must also avoid \\newfontfamily: that command errors on a missing
+    font, which would defeat the guard it sits inside.
+    """
+    preamble = render_tex(resume_en, settings).split(r"\begin{document}")[0]
+    guard = preamble.index(rf"\IfFontExistsTF{{{FONTS['symbol']}}}")
+    with_font, without_font = preamble[guard:].split(r"\newcommand{\bulletmark}")[0:3:2]
+
+    assert r"\newfontfamily\symbolfont" in with_font
+    assert r"\newfontfamily" not in without_font
+    for command in (r"\bulletmark", r"\arrowright", r"\arrowboth"):
+        assert preamble.count(rf"\newcommand{{{command}}}") == 2, f"{command} misses a branch"
+
+
+def test_overleaf_instructions_reach_the_generated_file(
+    resume_en: Resume, settings: Settings
+) -> None:
+    """The guidance must be a LaTeX comment, not a Jinja one.
+
+    Written as `\\#{...}` it is stripped during rendering, so the person who opens the
+    published .tex — the only audience for it — never sees a word.
+    """
+    preamble = render_tex(resume_en, settings).split(r"\begin{document}")[0]
+    assert "Overleaf" in preamble
+    assert "XeLaTeX" in preamble
+    # That hand edits do not survive the next run is the part worth stating.
+    assert "resume.tex.j2" in preamble
+
+
+def test_write_tex_writes_utf8_with_lf(
+    resume_zh: Resume, settings: Settings, tmp_path: Path
+) -> None:
+    """.gitattributes normalises the repo to LF; CRLF would rewrite the file every publish."""
+    output = write_tex(resume_zh, settings, tmp_path / "nested" / "resume.tex")
+
+    assert output.is_file()
+    raw = output.read_bytes()
+    assert b"\r\n" not in raw
+    assert raw.decode("utf-8").startswith("% !TEX program = xelatex")
+    assert "國泰金控 DDT AI" in raw.decode("utf-8")

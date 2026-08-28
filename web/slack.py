@@ -150,14 +150,39 @@ def _status_text(settings: Settings) -> str:
     return "\n".join(lines)
 
 
-def _latest_links(settings: Settings) -> str:
+# Every published format, in the order they are offered. One table, because the two places
+# that list downloads — the `/resume latest` reply and the publish confirmation
+# (`pipeline/notify_slack.notify_published`) — drifted apart: `.tex` was added here and the
+# publish message went on advertising two PDFs, which is the message you actually read.
+DOWNLOAD_FORMATS = (
+    ("pdf", "PDF"),
+    ("latex.pdf", "PDF (LaTeX)"),
+    ("docx", "Word"),
+    ("tex", "LaTeX 原始檔"),
+)
+
+LANG_LABELS = (("en", "英文"), ("zh", "中文"))
+
+
+def published_links(settings: Settings, lang: str) -> list[tuple[str, str]]:
+    """(label, url) for each format actually on disk for `lang`.
+
+    Existence-checked rather than assumed: an environment without Tectonic publishes no
+    `.latex.pdf`, and a link to a file that was never rendered 404s.
+    """
     base = settings.public_base_url
-    published = [
+    return [
         (label, f"{base}/resume/{lang}.{fmt}")
-        for lang, lang_label in (("en", "英文"), ("zh", "中文"))
-        for fmt, fmt_label in (("pdf", "PDF"), ("latex.pdf", "PDF (LaTeX)"), ("docx", "Word"))
-        for label in (f"{lang_label} {fmt_label}",)
+        for fmt, label in DOWNLOAD_FORMATS
         if (settings.output_dir / lang / _artifact_name(fmt)).is_file()
+    ]
+
+
+def _latest_links(settings: Settings) -> str:
+    published = [
+        (f"{lang_label} {label}", url)
+        for lang, lang_label in LANG_LABELS
+        for label, url in published_links(settings, lang)
     ]
     if not published:
         return "還沒有已發布的履歷。核准一次執行後就會出現下載連結。"
@@ -165,7 +190,12 @@ def _latest_links(settings: Settings) -> str:
 
 
 def _artifact_name(fmt: str) -> str:
-    return {"pdf": "resume.pdf", "latex.pdf": "resume.latex.pdf", "docx": "resume.docx"}[fmt]
+    return {
+        "pdf": "resume.pdf",
+        "latex.pdf": "resume.latex.pdf",
+        "docx": "resume.docx",
+        "tex": "resume.tex",
+    }[fmt]
 
 
 # --- interactive buttons ----------------------------------------------------

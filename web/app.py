@@ -151,7 +151,7 @@ async def index() -> JSONResponse:
             "downloads": {
                 f"{lang}.{fmt}": f"{settings.public_base_url}/resume/{lang}.{fmt}"
                 for lang in ("en", "zh")
-                for fmt in ("pdf", "latex.pdf", "docx")
+                for fmt in ("pdf", "latex.pdf", "docx", "tex")
             },
         }
     )

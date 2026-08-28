@@ -1,6 +1,6 @@
 # Resume Pipeline
 
-依實習與專案經驗自動更新履歷。Notion 是唯一真實來源，中英各一份、三種格式，
+依實習與專案經驗自動更新履歷。Notion 是唯一真實來源，中英各一份、四種格式，
 **定時執行只會產生待審核的版本，永遠不會自己發布** — 一定要你看過 before/after 才會套用。
 
 ```
@@ -8,7 +8,7 @@ sources/ 丟文件 ──▶ LLM 抽取 ──▶ Notion 待審 ──▶ 你在
                                                       │
                                     ┌─────────────────┘
                                     ▼
-        讀 Notion(Approved) ──▶ 中英翻譯 ──▶ 產出 6 個檔案 ──▶ diff
+        讀 Notion(Approved) ──▶ 中英翻譯 ──▶ 產出 8 個檔案 ──▶ diff
                                                                 │
                                                 Slack 通知 ⏸ 等你核准
                                                                 │
@@ -18,7 +18,8 @@ sources/ 丟文件 ──▶ LLM 抽取 ──▶ Notion 待審 ──▶ 你在
 ```
 
 - **Notion**：[履歷資料庫 / Resume Master](https://app.notion.com/p/3b525b0d3537813ebc87e48ed8f823bc)
-- **產出**：`output/{en,zh}/resume.pdf`、`resume.latex.pdf`、`resume.docx`
+- **產出**：`output/{en,zh}/resume.pdf`、`resume.latex.pdf`、`resume.docx`、`resume.tex`
+  （最後一個是 LaTeX 原始檔，可以直接丟進 Overleaf 手改 —— 見「拿去 Overleaf 改」）
 
 ---
 
@@ -39,6 +40,7 @@ sources/ 丟文件 ──▶ LLM 抽取 ──▶ Notion 待審 ──▶ 你在
 https://<你的-cloud-run-網址>/resume/en.pdf          .../resume/zh.pdf
 https://<你的-cloud-run-網址>/resume/en.latex.pdf    .../resume/zh.latex.pdf
 https://<你的-cloud-run-網址>/resume/en.docx         .../resume/zh.docx
+https://<你的-cloud-run-網址>/resume/en.tex          .../resume/zh.tex
 ```
 
 ---
@@ -191,7 +193,7 @@ GitHub Actions，Secret Manager 不會再顯示第二次）：
 | --- | --- |
 | `/resume update` | 立刻跑一次。有變更 → 送審核連結；沒變更 → 也會回報 |
 | `/resume status` | 最近幾次執行的狀態，含待核准的連結 |
-| `/resume latest` | 已發布履歷的六個下載連結 |
+| `/resume latest` | 已發布履歷的八個下載連結 |
 | `/resume` | 等同 `status` |
 | 打錯字（例如 `lastest`） | 回覆會列出三個可用指令 |
 
@@ -244,7 +246,7 @@ Cloud Run scale-to-zero 沒有這個問題，排程則移到 GitHub Actions。
 | 設定 | 值 | 原因 |
 | --- | --- | --- |
 | `--memory` | 2Gi | **實測峰值 1041 MiB**。1Gi 會 OOM（見下方說明），2Gi 才有餘裕 |
-| `--timeout` | 900s | 渲染六個檔案要數十秒，預設 300s 會被切斷 |
+| `--timeout` | 900s | 渲染八個檔案要數十秒，預設 300s 會被切斷 |
 | `--max-instances` | 1 | 兩個 instance 會搶著寫同一份 repo 狀態 |
 | `STORAGE_BACKEND` | `github` | **必須** — Cloud Run 磁碟是瞬態的，連續請求可能落在不同 instance |
 | secrets | Secret Manager | Cloud Run 的環境變數對有 viewer 權限的人可見，而這些 token 能推 repo、能發 Slack |
@@ -359,7 +361,7 @@ python -m venv .venv
 .\.venv\Scripts\playwright install chromium
 copy .env.example .env      # 填入你的 token
 
-# 用 fixture 產出六個檔案，完全不需要任何憑證
+# 用 fixture 產出八個檔案，完全不需要任何憑證
 .\.venv\Scripts\python scripts\local_run.py --render-only --png
 
 # 從真的 Notion 讀
@@ -390,11 +392,33 @@ Windows 上沒有 poppler，`pages.py` 會退回用 Playwright 截圖，但那�
 | Renderer | 產物 | 備註 |
 | --- | --- | --- |
 | `html.py` | `resume.pdf` | 主要輸出，Playwright + Chromium |
-| `latex.py` | `resume.latex.pdf` | **Tectonic 而非 TeX Live** — 後者會讓 image 到 2.5GB、build 慢 15 分鐘 |
+| `latex.py` | `resume.tex` | LaTeX 原始檔。純 Jinja，**不需要 Tectonic** —— 本機 Windows 也產得出來 |
+| `latex.py` | `resume.latex.pdf` | 由上面那份 .tex 編出來。**Tectonic 而非 TeX Live** — 後者會讓 image 到 2.5GB、build 慢 15 分鐘 |
 | `docx.py` | `resume.docx` | 犧牲版面精度換可編輯性（部分投遞系統要 .docx、ATS 也更好解析） |
 
 中文不是機器翻譯直出：`ZH Override` 欄位與頁面內文的 `## 中文` 區段永遠優先，
 只有沒寫的部分才送 LLM 產草稿。產品名（Python、AWS、LangGraph）不翻譯。
+
+### 拿去 Overleaf 改
+
+想針對某一次投遞手改版面（擠掉半行、換個標題順序），不必動 pipeline：
+
+1. 下載 `/resume/en.tex` 或 `/resume/zh.tex`（Slack 打 `/resume latest` 也有連結）
+2. Overleaf → New Project → **Upload Project**，把 .tex 丟進去
+3. 編譯器要 **XeLaTeX**。檔案第一行有 `% !TEX program = xelatex`，Overleaf 通常會自動選；
+   沒有的話到 Menu → Compiler 手動改。**pdfLaTeX 一定編不過**（xeCJK 與 fontspec 需要 XeTeX）
+
+只有一個檔案、沒有任何外部資源，所以不需要打包 zip。
+
+**字型會自動退版。** 產出的 .tex 用 `\IfFontExistsTF` 把每個字型包起來：容器裡有
+Noto（所以 `resume.latex.pdf` 的排版不受影響），Overleaf 沒有就依序退到 TeX Live 內建的
+`uming.ttc` → Fandol（拉丁字型退到 TeX Gyre）。Fandol 排在最後是因為它是簡體字型，
+繁體缺字會變成豆腐方塊 —— 那種「編得過但不能用」比直接報錯更糟。
+若仍因缺字型編不過，改檔首那幾行 fallback 的字型名字就行，`pipeline/render/latex.py`
+的 `FONTS` 是這些名字的來源。
+
+**在 Overleaf 的手改不會回流。** 下一次 pipeline 產出會覆蓋 `output/*/resume.tex`，
+要永久生效請改 `templates/resume.tex.j2`（改完記得同步 `print.css` 與 `docx.py`，見上面的 token 表）。
 
 ---
 
@@ -433,7 +457,8 @@ B 請求要讀得到」。`github` backend 解決這件事，代價是每次操�
 | `/resume update` 好像沒反應 | 先確認回覆有出現在頻道；若完全沒有回覆，是 Request URL 或 Signing Secret 的問題 |
 | 丟進 `sources/` 的檔案被忽略 | 副檔名不在支援清單（見 `sources/README.md`），或忘記 push —— 服務讀的是 repo，不是你的硬碟 |
 | `/resume/en.pdf` 回 404 | 還沒核准過任何 run |
-| 少了 `.latex.pdf` | 該環境沒有 Tectonic；`/health` 會列出缺哪些工具 |
+| 少了 `.latex.pdf`（但 `resume.tex` 有） | 該環境沒有 Tectonic。.tex 不需要它，所以只有編譯後的 PDF 會缺；`/health` 會列出缺哪些工具 |
+| Overleaf 說 `Font ... cannot be found` | 編譯器不是 XeLaTeX，或 fallback 字型也不在那台機器上 —— 見「拿去 Overleaf 改」 |
 | diff 頁沒有版面比對圖 | 該環境沒有 `pdftoppm` |
 | 核准連結說 invalid signature | `APPROVAL_HMAC_SECRET` 換過了，舊連結會失效 |
 

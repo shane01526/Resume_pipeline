@@ -65,7 +65,7 @@ async def create_run(
 ) -> JSONResponse:
     """Start a pipeline run. Called by the cron job and by Slack's /resume update.
 
-    Returns immediately and does the work in the background: rendering six artifacts
+    Returns immediately and does the work in the background: rendering eight artifacts
     takes tens of seconds, well past any sane HTTP timeout.
     """
     settings = get_settings()
