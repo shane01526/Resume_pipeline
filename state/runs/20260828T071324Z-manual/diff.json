@@ -1,0 +1,40 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "80",
+          "before": "90",
+          "field": "priority"
+        }
+      ],
+      "key": "exp:national-taiwan-university:2024-06",
+      "kind": "modified",
+      "label": "National Taiwan University",
+      "notion_page_id": "3b525b0d-3537-8136-9ea1-cf9573136374",
+      "section": "experiences"
+    },
+    {
+      "bullet_diff": [],
+      "fields": [
+        {
+          "after": "90",
+          "before": "80",
+          "field": "priority"
+        }
+      ],
+      "key": "exp:taiwan-ai-academy-aia:2025-06",
+      "kind": "modified",
+      "label": "Taiwan AI Academy (AIA)",
+      "notion_page_id": "3b525b0d-3537-8152-bd96-f1fe85f96b33",
+      "section": "experiences"
+    }
+  ],
+  "counts": {
+    "added": 0,
+    "modified": 2,
+    "removed": 0
+  },
+  "is_first_run": false
+}
