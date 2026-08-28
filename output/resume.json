@@ -126,36 +126,40 @@
     {
       "affiliation": "Cathay Financial Holdings — DDT AI",
       "bullets": [
-        "Built a Slack bot that converts mp4 work oral report into confirmable Notion pages and tasks, plus a daily automated standup summary",
-        "Re-architected a single-instance Next.js service into a cloud-native ECS Fargate deployment with DynamoDB, SQS and EventBridge to enable horizontal scaling and zero-data-loss rolling updates",
-        "Split webhook handling so web verified signatures, enqueued to SQS and returned 200 within 3s while worker handled 30–120s transcription and LLM work",
-        "Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on persistent worker, cold start/ffmpeg, HA, ops cost and private-subnet criteria"
+        "Built an internal AI research report query assistant using a four-layer architecture (Interface / Application / Data / External Services).",
+        "Designed a three-scenario classification system (LLM intent detection + Python state machine) for intelligent routing across explicit, fuzzy, and out-of-scope queries.",
+        "Built a full ETL pipeline (Google Sheets → Bedrock Embedding → OpenSearch) with multi-dimensional filtering by topic, source, date, and subscription tier."
       ],
       "confidence": "High",
       "context": "Cathay Financial Holdings, DDT AI",
-      "date": null,
+      "date": "2026-03-01",
       "highlight": true,
-      "name": "Voice-Notion — Cloud-First Standup Assistant",
-      "notion_page_id": "3bf25b0d-3537-8124-974d-c8d5250cb599",
-      "priority": 0,
+      "name": "AI News Agent — Three-Scenario Routing Chatbot",
+      "notion_page_id": "3ca25b0d-3537-8082-98ff-e6806b6003b1",
+      "priority": 90,
       "repo_url": null,
-      "source": "deployment-architecture.html",
-      "tags": []
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "tags": [
+        "LLM",
+        "RAG",
+        "AWS",
+        "ETL",
+        "LINE"
+      ]
     },
     {
       "affiliation": "Cathay Financial Holdings — DDT AI",
       "bullets": [
-        "Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace); BU Agent serves as the BU's single entry point (two modes) to draft v1.0 BRD, then hands off structured deliverables to the downstream BA Agent.",
-        "Explore mode: 5-stage question bank (diverge → converge → challenge) with a live 5-dimension rubric workspace; emits a dual handoff (JSON + 200–400-word paragraph) that auto-transitions to Consult, compressing ideation to 5–10 min.",
-        "Consult mode: Step 1 auto-drafts the BRD outline from per-BU YAML templates and adding status tags for each sections; Step 2 interviews only “needs_round2” tag with live-preview inline edit, keeping BU interview time to 20–30 min."
+        "Built an internal web app using LangGraph + PostgresSaver with a split layout (chat ↔ mode-aware workspace)",
+        "BU Agent serves as the BU's single entry point (two modes) to draft v1.0 BRD, then hands off structured deliverables to the downstream BA Agent."
       ],
       "confidence": "Medium",
       "context": "Cathay Financial Holdings, DDT AI",
       "date": "2026-05-01",
       "highlight": true,
       "name": "BU Agent — Web-Based Two-Mode BRD Co-Drafting Assistant",
-      "notion_page_id": "3b525b0d-3537-810f-a296-d218618fde1d",
-      "priority": 90,
+      "notion_page_id": "3ca25b0d-3537-80d9-b52a-e72fd64ea83b",
+      "priority": 80,
       "repo_url": null,
       "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
       "tags": [
@@ -167,27 +171,20 @@
     {
       "affiliation": "Cathay Financial Holdings — DDT AI",
       "bullets": [
-        "Built an internal AI research report query assistant using a four-layer architecture (Interface / Application / Data / External Services).",
-        "Designed a three-scenario classification system (LLM intent detection + Python state machine) for intelligent routing across explicit, fuzzy, and out-of-scope queries.",
-        "Implemented asynchronous Lambda self-invocation to overcome LINE Webhook's 1-second timeout, supporting 5–15 second LLM inference + RAG retrieval pipelines.",
-        "Built a full ETL pipeline (Google Sheets → Bedrock Embedding → OpenSearch) with multi-dimensional filtering by topic, source, date, and subscription tier."
+        "Built a Slack bot that converts mp4 oral work report into confirmable Notion pages and tasks, plus a daily automated standup summary",
+        "Re-architected a single-instance Next.js service into a cloud-native ECS Fargate deployment with DynamoDB, SQS and EventBridge to enable horizontal scaling and zero-data-loss rolling updates",
+        "Evaluated Lambda + API Gateway, self-managed EC2 and App Runner against ECS Fargate on ops cost and private-subnet criteria"
       ],
       "confidence": "High",
       "context": "Cathay Financial Holdings, DDT AI",
-      "date": "2026-03-01",
+      "date": null,
       "highlight": true,
-      "name": "AI News Agent — Three-Scenario Routing Chatbot",
-      "notion_page_id": "3b525b0d-3537-8131-94fc-e5ea563f818f",
+      "name": "Voice-Notion — Cloud-First Standup Assistant",
+      "notion_page_id": "3ca25b0d-3537-80c2-bc8a-cd2d251b1406",
       "priority": 100,
       "repo_url": null,
-      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
-      "tags": [
-        "LLM",
-        "RAG",
-        "AWS",
-        "ETL",
-        "LINE"
-      ]
+      "source": "deployment-architecture.html",
+      "tags": []
     }
   ],
   "publications": [
