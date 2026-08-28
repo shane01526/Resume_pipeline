@@ -1,0 +1,71 @@
+{
+  "changes": [
+    {
+      "bullet_diff": [
+        "-Member of NTU Chinese-English Translation Program"
+      ],
+      "fields": [
+        {
+          "after": "2 bullet(s)",
+          "before": "3 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "edu:national-taiwan-university-ntu",
+      "kind": "modified",
+      "label": "National Taiwan University (NTU)",
+      "notion_page_id": "3b525b0d-3537-8103-9374-f259b9df04f8",
+      "section": "education"
+    },
+    {
+      "bullet_diff": [
+        "-Optimized AI News agent orchestration logic, data ETL, LINE integration and AWS deploy architecture.",
+        "-Built a recording-ASR-based BRD auto-revising agent with human-in-the-loop audit.",
+        "-Deployed a speech-driven form-filling service using streaming LLM on AWS for enterprise usage.",
+        "+Developed LLM agents for optimizing internal business use .Owning both the AI\napplication layer and the cloud-oriented deployment infrastructure."
+      ],
+      "fields": [
+        {
+          "after": "AI Engineer & System Design Intern",
+          "before": "ML/AI Engineer Intern",
+          "field": "role"
+        },
+        {
+          "after": "1 bullet(s)",
+          "before": "3 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "exp:cathay-financial-holdings-ddt-ai:2026-02",
+      "kind": "modified",
+      "label": "Cathay Financial Holdings — DDT AI",
+      "notion_page_id": "3b525b0d-3537-8135-a2e4-da7824d25dd3",
+      "section": "experiences"
+    },
+    {
+      "bullet_diff": [
+        "-Architected a LINE LIFF App career counseling chatbot with an n8n-based RPA workflow and managed user data with Supabase.",
+        "-Supported Enterprise Cloud Platform education courses as technical support.",
+        "+A dual delivery-and-support role: built an internal-facing application while serving as front-line technical support for enterprise course participants."
+      ],
+      "fields": [
+        {
+          "after": "1 bullet(s)",
+          "before": "2 bullet(s)",
+          "field": "bullets"
+        }
+      ],
+      "key": "exp:taiwan-ai-academy-aia:2025-06",
+      "kind": "modified",
+      "label": "Taiwan AI Academy (AIA)",
+      "notion_page_id": "3b525b0d-3537-8152-bd96-f1fe85f96b33",
+      "section": "experiences"
+    }
+  ],
+  "counts": {
+    "added": 0,
+    "modified": 3,
+    "removed": 0
+  },
+  "is_first_run": false
+}
