@@ -1,0 +1,297 @@
+{
+  "education": [
+    {
+      "bullets": [
+        "參與臺大計算語言學學程",
+        "修習課程：自然語言處理、計算語言學、音韻學、語意學"
+      ],
+      "confidence": "High",
+      "coursework": "NLP、計算語言學、音韻學、語意學",
+      "degree": "外國語文學系學士",
+      "end": "2026-06-30",
+      "expected": false,
+      "field": null,
+      "highlight": false,
+      "institution": "國立臺灣大學",
+      "notion_page_id": "3b525b0d-3537-8103-9374-f259b9df04f8",
+      "priority": 90,
+      "programs": [
+        "NTU Computational Linguistics Specialized Program",
+        "NTU Chinese-English Translation Program"
+      ],
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": null
+    },
+    {
+      "bullets": [
+        "預計修習課程：音韻學、計算語言學"
+      ],
+      "confidence": "High",
+      "coursework": "音韻學、計算語言學",
+      "degree": "語言學碩士",
+      "end": "2028-06-30",
+      "expected": true,
+      "field": null,
+      "highlight": false,
+      "institution": "國立陽明交通大學",
+      "notion_page_id": "3b525b0d-3537-81e9-896b-ed7f19bb7487",
+      "priority": 100,
+      "programs": [],
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": null
+    }
+  ],
+  "experiences": [
+    {
+      "bullets": [
+        "開發針對內部業務流程優化的 LLM agent，並設計與部署其背後的雲端架構 。負責 AI 應用層與其運行的生產環境基礎架構。"
+      ],
+      "confidence": "High",
+      "end": null,
+      "highlight": true,
+      "location": "台灣台北",
+      "notion_page_id": "3b525b0d-3537-8135-a2e4-da7824d25dd3",
+      "organization": "國泰金控 DDT AI",
+      "priority": 100,
+      "role": "ML/AI 工程師實習生",
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": "2026-02-01",
+      "tags": [
+        "LLM",
+        "AWS",
+        "LangGraph",
+        "ETL",
+        "Slack",
+        "LINE"
+      ],
+      "type": "Internship"
+    },
+    {
+      "bullets": [
+        "開發與支援並行的角色：開發AI 原生應用，同時擔任企業課程現場的第一線技術支援。"
+      ],
+      "confidence": "High",
+      "end": "2025-08-31",
+      "highlight": false,
+      "location": "台灣新北市",
+      "notion_page_id": "3b525b0d-3537-8152-bd96-f1fe85f96b33",
+      "organization": "台灣人工智慧學校（AIA）",
+      "priority": 90,
+      "role": "AI 開發與技術支援暑期實習生",
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "start": "2025-06-01",
+      "tags": [
+        "LINE",
+        "Frontend"
+      ],
+      "type": "Internship"
+    }
+  ],
+  "lang": "zh",
+  "profile": {
+    "email": "applegirlmabel@gmail.com",
+    "github": null,
+    "linkedin": null,
+    "name": "吳雨諠",
+    "phone": null,
+    "summary": null,
+    "website": null
+  },
+  "projects": [
+    {
+      "affiliation": "Cathay Financial Holdings — DDT AI",
+      "bullets": [
+        "以四層架構（介面 / 應用 / 資料 / 外部服務）打造內部 AI 研究報告查詢助理。",
+        "設計三情境分類系統（LLM 意圖偵測 + Python 狀態機），對明確、模糊與超出範圍的提問進行智慧路由。",
+        "建置完整 ETL 流程（Google Sheets → Bedrock Embedding → OpenSearch），並依主題、來源、日期與訂閱層級做多維度篩選。"
+      ],
+      "confidence": "High",
+      "context": "國泰金控 DDT AI",
+      "date": "2026-03-01",
+      "highlight": true,
+      "name": "AI News Agent — 三情境路由聊天機器人",
+      "notion_page_id": "3ca25b0d-3537-8082-98ff-e6806b6003b1",
+      "priority": 90,
+      "repo_url": null,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "tags": [
+        "LLM",
+        "RAG",
+        "AWS",
+        "ETL",
+        "LINE"
+      ]
+    },
+    {
+      "affiliation": "Cathay Financial Holdings — DDT AI",
+      "bullets": [
+        "以 LangGraph + PostgresSaver 打造內部網頁應用，採分屏佈局（對話 ↔ 模式感知工作區）",
+        "BU Agent 作為業務單位的單一入口（兩種模式）草擬 v1.0 BRD，再將結構化交付物交棒給下游 BA Agent。"
+      ],
+      "confidence": "Medium",
+      "context": "國泰金控 DDT AI",
+      "date": "2026-05-01",
+      "highlight": true,
+      "name": "BU Agent — 雙模式 BRD 協作草擬助理（網頁版）",
+      "notion_page_id": "3ca25b0d-3537-80d9-b52a-e72fd64ea83b",
+      "priority": 80,
+      "repo_url": null,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "tags": [
+        "LLM",
+        "LangGraph",
+        "Frontend"
+      ]
+    },
+    {
+      "affiliation": "Cathay Financial Holdings — DDT AI",
+      "bullets": [
+        "開發 Slack bot，將 mp4 口頭工作報告轉為可確認的 Notion 頁面與任務，並每日自動產出 standup 摘要",
+        "將單一實例的 Next.js 服務重構為雲原生 ECS Fargate 架構，搭配 DynamoDB、SQS 與 EventBridge，實現水平擴展與零資料遺失的滾動更新",
+        "以維運成本與 private subnet 條件評估 Lambda + API Gateway、自管 EC2 與 App Runner，並與 ECS Fargate 比較"
+      ],
+      "confidence": "High",
+      "context": "國泰金控 DDT AI",
+      "date": null,
+      "highlight": true,
+      "name": "Voice-Notion — Slack 語音轉 Notion 機器人雲原生架構",
+      "notion_page_id": "3ca25b0d-3537-80c2-bc8a-cd2d251b1406",
+      "priority": 100,
+      "repo_url": null,
+      "source": "deployment-architecture.html",
+      "tags": []
+    }
+  ],
+  "publications": [
+    {
+      "authors": null,
+      "bullets": [
+        "開發並發表「Self-Discover-NLI」prompt engineering 框架，將 Self-Discover 三步驟流程（SELECT → ADAPT → APPLY）重新設計以應用於自然語言推論（NLI）任務。",
+        "於 IMPPRES 資料集進行系統性實驗（每種觸發詞 95 個任務），評估 GPT-4o 對分裂句、條件句、情態詞等語言觸發詞的處理能力。",
+        "整體準確率提升約 10%；並透過深入誤差分析指出模型的系統性弱點。"
+      ],
+      "confidence": "High",
+      "date": null,
+      "highlight": false,
+      "notion_page_id": "3b525b0d-3537-81a2-bff7-fce57faffe06",
+      "priority": 95,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf",
+      "title": "Examining LLM's Ability to Judge Presuppositions: A Comparative Study of Zero-Shot and Self-Discover-NLI Prompting",
+      "type": "Conference Paper",
+      "url": null,
+      "venue": "ROCLING 2025"
+    }
+  ],
+  "skills": [
+    {
+      "category": "Certificates",
+      "confidence": "High",
+      "detail": "Solutions Architect Associate",
+      "highlight": false,
+      "name": "AWS SAA",
+      "notion_page_id": "3ca25b0d-3537-80d2-966e-e0925964ffb7",
+      "priority": 0,
+      "source": null
+    },
+    {
+      "category": "Frameworks",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "LangChain",
+      "notion_page_id": "3ca25b0d-3537-801a-b493-c63b1d50f9c3",
+      "priority": 0,
+      "source": null
+    },
+    {
+      "category": "Tools",
+      "confidence": "Medium",
+      "detail": "node:20-slim image with ffmpeg、--no-cache builds",
+      "highlight": false,
+      "name": "Docker",
+      "notion_page_id": "3bf25b0d-3537-81f3-9ae3-cf269c2a27ab",
+      "priority": 0,
+      "source": "deployment-architecture.html"
+    },
+    {
+      "category": "Tools",
+      "confidence": "Medium",
+      "detail": "register-task-definition、create-service、update-service、logs tail",
+      "highlight": false,
+      "name": "AWS CLI",
+      "notion_page_id": "3bf25b0d-3537-81f3-9732-f89c4869cbf7",
+      "priority": 0,
+      "source": "deployment-architecture.html"
+    },
+    {
+      "category": "Certificates",
+      "confidence": "High",
+      "detail": "聽讀 985、口說 180、寫作 170",
+      "highlight": false,
+      "name": "多益",
+      "notion_page_id": "3b525b0d-3537-811b-b5d4-ceda43ab63ad",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Cloud & Infra",
+      "confidence": "High",
+      "detail": "Lambda、Bedrock、OpenSearch、DynamoDB、Amazon ECR、EventBridge、Amazon SQS",
+      "highlight": false,
+      "name": "AWS",
+      "notion_page_id": "3b525b0d-3537-8130-a8d6-e99fe1e61ace",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Frameworks",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "LangGraph",
+      "notion_page_id": "3b525b0d-3537-8130-af5e-f81c7dc836cd",
+      "priority": 100,
+      "source": "bu_agent_overview.md"
+    },
+    {
+      "category": "Languages",
+      "confidence": "High",
+      "detail": "母語",
+      "highlight": false,
+      "name": "中文",
+      "notion_page_id": "3b525b0d-3537-8161-84c9-e54d8bbb38b4",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Languages",
+      "confidence": "High",
+      "detail": "流利",
+      "highlight": false,
+      "name": "英文",
+      "notion_page_id": "3b525b0d-3537-816e-b731-d2060755d2a9",
+      "priority": 90,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Tools",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "Microsoft Office",
+      "notion_page_id": "3b525b0d-3537-8180-8e07-d766d62fdbdc",
+      "priority": 80,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    },
+    {
+      "category": "Programming",
+      "confidence": "High",
+      "detail": null,
+      "highlight": false,
+      "name": "Python",
+      "notion_page_id": "3b525b0d-3537-81cd-a843-cd788eabf8e2",
+      "priority": 100,
+      "source": "Yu-Hsuan_Wu_Resume_EN.pdf"
+    }
+  ]
+}
