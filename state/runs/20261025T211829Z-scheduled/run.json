@@ -1,0 +1,17 @@
+{
+  "artifacts": [],
+  "commit_sha": null,
+  "counts": {
+    "added": 0,
+    "modified": 0,
+    "removed": 0
+  },
+  "created_at": "2026-10-25T21:18:29.176755Z",
+  "decided_by": null,
+  "error": null,
+  "id": "20261025T211829Z-scheduled",
+  "notion_run_page_id": null,
+  "status": "Building",
+  "trigger": "Scheduled",
+  "updated_at": "2026-10-25T21:18:29.177555Z"
+}
